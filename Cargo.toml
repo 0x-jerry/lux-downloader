@@ -23,3 +23,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 url = "2"
 uuid = { version = "1", features = ["serde", "v4"] }
+
+[profile.release]
+panic = "abort"   # Strip expensive panic clean-up logic
+codegen-units = 1 # Compile crates one after another so the compiler can optimize better
+lto = true        # Enables link to optimizations
+opt-level = "s"   # Optimize for binary size
+strip = true      # Remove debug symbols
