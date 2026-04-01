@@ -49,6 +49,7 @@ Default token is `change-me` unless overridden by `AUTH_TOKEN` at startup.
     "value": "https://example.com/file.iso"
   },
   "destination_path": "file.iso",
+  "overwrite_existing": false,
   "concurrency": 4,
   "checksum": "sha256:...",
   "protocol_options": {},
@@ -70,7 +71,9 @@ Default token is `change-me` unless overridden by `AUTH_TOKEN` at startup.
 
 Notes:
 
-- `destination_path` can be absolute, or relative to global `download_dir`.
+- `destination_path` must be relative to global `download_dir`.
+- Absolute paths and parent traversal (for example `../file.iso`) are rejected.
+- `overwrite_existing` defaults to `false`; when `true`, existing destination files are ignored and download restarts from byte `0`.
 - `source.kind` defaults to `auto` when omitted.
 - With `auto`, the service detects kind from `source.value`:
   - `magnet:?` => `magnet`
@@ -231,7 +234,16 @@ Response `200`: updated `TaskView`
 
 #### `POST /tasks/{id}/remove`
 
-Response `200`: updated `TaskView` (state `removed`)
+Query parameters:
+
+- `delete_file` (optional, default `false`): when `true`, also attempts to delete the downloaded file from disk.
+
+Response `200`: removed `TaskView` (state `removed`)
+
+Behavior:
+
+- The task is deleted from the database and no longer appears in `GET /tasks`.
+- By default only task metadata is removed; file data is preserved unless `delete_file=true`.
 
 ### Verify Task
 

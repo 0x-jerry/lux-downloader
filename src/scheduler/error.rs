@@ -10,6 +10,8 @@ pub enum SchedulerError {
     UnsupportedSource,
     #[error("task is already running")]
     AlreadyRunning,
+    #[error("invalid destination path: {0}")]
+    InvalidDestination(String),
     #[error("invalid state transition from {from} to {to}")]
     InvalidTransition { from: String, to: String },
 }

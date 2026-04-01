@@ -115,7 +115,9 @@ impl Scheduler {
         total_bytes: Option<u64>,
     ) -> Result<(), SchedulerError> {
         let mut tasks = self.tasks.write().await;
-        let task = tasks.get_mut(&id).ok_or(SchedulerError::NotFound)?;
+        let Some(task) = tasks.get_mut(&id) else {
+            return Ok(());
+        };
 
         if matches!(task.state, TaskState::Paused | TaskState::Removed) {
             return Ok(());
@@ -140,7 +142,9 @@ impl Scheduler {
         download_rate_bps: u64,
     ) -> Result<(), SchedulerError> {
         let mut tasks = self.tasks.write().await;
-        let task = tasks.get_mut(&id).ok_or(SchedulerError::NotFound)?;
+        let Some(task) = tasks.get_mut(&id) else {
+            return Ok(());
+        };
 
         if task.state != TaskState::Downloading {
             return Ok(());
@@ -162,7 +166,9 @@ impl Scheduler {
 
     async fn set_completed(&self, id: Uuid) -> Result<(), SchedulerError> {
         let mut tasks = self.tasks.write().await;
-        let task = tasks.get_mut(&id).ok_or(SchedulerError::NotFound)?;
+        let Some(task) = tasks.get_mut(&id) else {
+            return Ok(());
+        };
 
         if matches!(task.state, TaskState::Paused | TaskState::Removed) {
             return Ok(());
@@ -187,7 +193,9 @@ impl Scheduler {
 
     async fn set_failed(&self, id: Uuid, message: String) -> Result<(), SchedulerError> {
         let mut tasks = self.tasks.write().await;
-        let task = tasks.get_mut(&id).ok_or(SchedulerError::NotFound)?;
+        let Some(task) = tasks.get_mut(&id) else {
+            return Ok(());
+        };
 
         if matches!(task.state, TaskState::Paused | TaskState::Removed) {
             return Ok(());

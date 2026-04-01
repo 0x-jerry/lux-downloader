@@ -46,13 +46,17 @@ impl TransferBackend for HttpFamilyBackend {
         let url = Url::parse(&spec.source.value)
             .map_err(|_| BackendError::InvalidUrl(spec.source.value.clone()))?;
 
-        let destination = resolve_destination_path(&context.download_dir, &spec.destination_path);
+        let destination = resolve_destination_path(&context.download_dir, &spec.destination_path)?;
         if let Some(parent) = destination.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
 
         let chunk_size = context.http_chunk_size_bytes.max(MIN_HTTP_CHUNK_SIZE_BYTES);
-        let existing_bytes = io::file_size(&destination).await?;
+        let existing_bytes = if spec.overwrite_existing {
+            0
+        } else {
+            io::file_size(&destination).await?
+        };
         let desired_threads = spec.concurrency.unwrap_or(1).clamp(1, MAX_THREADS);
 
         if desired_threads > 1 && existing_bytes == 0 {

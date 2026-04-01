@@ -1,6 +1,7 @@
 use super::source::resolve_source_kind;
 use super::transitions::validate_transition;
 use super::{Scheduler, SchedulerError};
+use crate::backends::resolve_destination_path;
 use crate::models::{
     GlobalSettings, TaskListQuery, TaskPatch, TaskProgress, TaskRuntimeSettings, TaskSpec,
     TaskState, TaskView,
@@ -8,6 +9,7 @@ use crate::models::{
 use crate::persistence::to_json_value;
 use chrono::Utc;
 use serde_json::json;
+use std::io::ErrorKind;
 use uuid::Uuid;
 
 impl Scheduler {
@@ -62,6 +64,11 @@ impl Scheduler {
             spec.settings = Some(TaskRuntimeSettings::default());
         }
         resolve_source_kind(&mut spec)?;
+        {
+            let settings = self.settings.read().await;
+            resolve_destination_path(&settings.download_dir, &spec.destination_path)
+                .map_err(|err| SchedulerError::InvalidDestination(err.to_string()))?;
+        }
 
         let backend_name = self
             .find_backend(&spec)
@@ -132,9 +139,28 @@ impl Scheduler {
         Ok(task)
     }
 
-    pub async fn remove_task(&self, id: Uuid) -> Result<TaskView, SchedulerError> {
+    pub async fn remove_task(&self, id: Uuid, delete_file: bool) -> Result<TaskView, SchedulerError> {
         self.cancel_task(id).await;
-        self.transition(id, TaskState::Removed).await
+
+        let mut guard = self.tasks.write().await;
+        let mut task = guard.remove(&id).ok_or(SchedulerError::NotFound)?;
+        validate_transition(&task.state, &TaskState::Removed)?;
+        task.state = TaskState::Removed;
+        task.progress.download_rate_bps = 0;
+        task.progress.upload_rate_bps = 0;
+        task.updated_at = Utc::now();
+        task.error = None;
+        let removed = task.clone();
+        drop(guard);
+
+        self.store.delete_task(id).await?;
+        self.emit(Some(id), "task_state_changed", to_json_value(&removed));
+
+        if delete_file {
+            self.delete_task_file(&removed).await;
+        }
+
+        Ok(removed)
     }
 
     pub async fn verify_task(&self, id: Uuid) -> Result<TaskView, SchedulerError> {
@@ -166,5 +192,40 @@ impl Scheduler {
         self.store.save_task(&cloned).await?;
         self.emit(Some(id), "task_state_changed", to_json_value(&cloned));
         Ok(cloned)
+    }
+
+    async fn delete_task_file(&self, task: &TaskView) {
+        let settings = self.settings.read().await;
+        let path = match resolve_destination_path(&settings.download_dir, &task.spec.destination_path)
+        {
+            Ok(path) => path,
+            Err(err) => {
+                self.emit(
+                    Some(task.id),
+                    "task_warning",
+                    json!({
+                        "task_id": task.id,
+                        "message": format!("failed to resolve task file path for deletion: {err}"),
+                    }),
+                );
+                return;
+            }
+        };
+        drop(settings);
+
+        match tokio::fs::remove_file(&path).await {
+            Ok(()) => {}
+            Err(err) if err.kind() == ErrorKind::NotFound => {}
+            Err(err) => {
+                self.emit(
+                    Some(task.id),
+                    "task_warning",
+                    json!({
+                        "task_id": task.id,
+                        "message": format!("failed to delete task file {}: {err}", path.display()),
+                    }),
+                );
+            }
+        }
     }
 }

@@ -1,0 +1,22 @@
+{
+  "name": "lux-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare",
+    "fmt": "oxfmt src entrypoints *.ts"
+  },
+  "dependencies": {
+    "vue": "^3.5.31"
+  },
+  "devDependencies": {
+    "@wxt-dev/module-vue": "^1.0.3",
+    "oxfmt": "^0.43.0",
+    "typescript": "^6.0.2",
+    "wxt": "^0.20.20"
+  }
+}

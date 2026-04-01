@@ -143,6 +143,18 @@ impl Store {
             .ok_or(StoreError::NotFound)
     }
 
+    pub async fn delete_task(&self, id: Uuid) -> Result<(), StoreError> {
+        let result = sqlx::query("DELETE FROM tasks WHERE id = ?")
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(StoreError::NotFound);
+        }
+        Ok(())
+    }
+
     pub async fn list_tasks(&self, query: &TaskListQuery) -> Result<Vec<TaskView>, StoreError> {
         let rows = sqlx::query(
             "SELECT id, state, spec_json, progress_json, error, created_at, updated_at FROM tasks",

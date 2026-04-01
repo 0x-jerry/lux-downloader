@@ -105,6 +105,8 @@ pub struct CookiePair {
 pub struct TaskSpec {
     pub source: SourceInput,
     pub destination_path: String,
+    #[serde(default)]
+    pub overwrite_existing: bool,
     pub concurrency: Option<u32>,
     pub checksum: Option<String>,
     pub protocol_options: Option<Value>,
@@ -204,6 +206,12 @@ pub struct TaskListQuery {
 pub struct TaskPatch {
     pub settings: Option<TaskRuntimeSettings>,
     pub concurrency: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RemoveTaskQuery {
+    #[serde(default)]
+    pub delete_file: bool,
 }
 
 #[derive(Debug, Deserialize)]

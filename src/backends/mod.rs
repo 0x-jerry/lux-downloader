@@ -14,7 +14,7 @@ use crate::models::TaskSpec;
 use async_trait::async_trait;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, Proxy};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -107,11 +107,39 @@ pub(crate) fn build_client(spec: &TaskSpec) -> Result<Client, BackendError> {
     Ok(builder.build()?)
 }
 
-pub(crate) fn resolve_destination_path(download_dir: &str, destination: &str) -> PathBuf {
-    let p = Path::new(destination);
-    if p.is_absolute() {
-        p.to_path_buf()
-    } else {
-        Path::new(download_dir).join(p)
+pub(crate) fn resolve_destination_path(
+    download_dir: &str,
+    destination: &str,
+) -> Result<PathBuf, BackendError> {
+    if destination.trim().is_empty() {
+        return Err(BackendError::Unsupported(
+            "destination_path cannot be empty".to_string(),
+        ));
     }
+
+    let mut relative = PathBuf::new();
+    for component in Path::new(destination).components() {
+        match component {
+            Component::CurDir => {}
+            Component::Normal(part) => relative.push(part),
+            Component::ParentDir => {
+                return Err(BackendError::Unsupported(
+                    "destination_path must not contain '..'".to_string(),
+                ));
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(BackendError::Unsupported(
+                    "destination_path must be relative to download_dir".to_string(),
+                ));
+            }
+        }
+    }
+
+    if relative.as_os_str().is_empty() {
+        return Err(BackendError::Unsupported(
+            "destination_path cannot resolve to current directory".to_string(),
+        ));
+    }
+
+    Ok(Path::new(download_dir).join(relative))
 }

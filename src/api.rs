@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::models::{CreateTaskRequest, GlobalSettings, TaskListQuery, TaskPatch};
+use crate::models::{CreateTaskRequest, GlobalSettings, RemoveTaskQuery, TaskListQuery, TaskPatch};
 use crate::scheduler::SchedulerError;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Path, Query, State, WebSocketUpgrade};
@@ -60,8 +60,9 @@ pub async fn resume_task(
 pub async fn remove_task(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
+    Query(query): Query<RemoveTaskQuery>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let task = state.scheduler.remove_task(id).await?;
+    let task = state.scheduler.remove_task(id, query.delete_file).await?;
     Ok(Json(json!(task)))
 }
 
@@ -171,6 +172,7 @@ impl From<SchedulerError> for ApiError {
             SchedulerError::AlreadyRunning => {
                 Self::BadRequest("task is already running".to_string())
             }
+            SchedulerError::InvalidDestination(message) => Self::BadRequest(message),
             SchedulerError::InvalidTransition { from, to } => {
                 Self::BadRequest(format!("invalid transition from {from} to {to}"))
             }
