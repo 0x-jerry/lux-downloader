@@ -3,8 +3,8 @@ use super::transitions::validate_transition;
 use super::{Scheduler, SchedulerError};
 use crate::backends::resolve_destination_path;
 use crate::models::{
-    GlobalSettings, TaskListQuery, TaskPatch, TaskProgress, TaskRuntimeSettings, TaskSpec,
-    TaskState, TaskView,
+    GlobalSettings, SourceKind, TaskListQuery, TaskPatch, TaskProgress, TaskRuntimeSettings,
+    TaskSpec, TaskState, TaskView,
 };
 use crate::persistence::to_json_value;
 use chrono::Utc;
@@ -28,7 +28,7 @@ impl Scheduler {
             for task in loaded {
                 if matches!(
                     task.state,
-                    TaskState::Downloading | TaskState::MetadataFetching
+                    TaskState::Downloading | TaskState::MetadataFetching | TaskState::Seeding
                 ) {
                     to_resume.push(task.id);
                 }
@@ -213,7 +213,16 @@ impl Scheduler {
         };
         drop(settings);
 
-        match tokio::fs::remove_file(&path).await {
+        let remove_result = if matches!(
+            task.spec.source.kind,
+            SourceKind::Torrent | SourceKind::Magnet
+        ) {
+            tokio::fs::remove_dir_all(&path).await
+        } else {
+            tokio::fs::remove_file(&path).await
+        };
+
+        match remove_result {
             Ok(()) => {}
             Err(err) if err.kind() == ErrorKind::NotFound => {}
             Err(err) => {

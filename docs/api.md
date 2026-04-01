@@ -72,6 +72,7 @@ Default token is `change-me` unless overridden by `AUTH_TOKEN` at startup.
 Notes:
 
 - `destination_path` must be relative to global `download_dir`.
+- For `magnet` / `torrent`, `destination_path` is treated as the output root directory.
 - Absolute paths and parent traversal (for example `../file.iso`) are rejected.
 - `overwrite_existing` defaults to `false`; when `true`, existing destination files are ignored and download restarts from byte `0`.
 - `source.kind` defaults to `auto` when omitted.
@@ -82,6 +83,13 @@ Notes:
   - `http|https|ftp|ftps|sftp` URLs => `url`
 - `auto_start` defaults to `false`; when `true`, the service immediately resumes the created task.
 - `protocol_options`, `checksum`, `cookies`, and some runtime settings are accepted but not yet enforced by all backends.
+- For `magnet` / `torrent` tasks, `protocol_options` currently supports:
+  - `disable_dht: bool`
+  - `disable_trackers: bool`
+  - `trackers: string[]`
+  - `only_files: number[]`
+  - `only_files_regex: string`
+  - Unknown keys are ignored.
 - If `settings` is omitted, it is stored as an empty settings object.
 
 ### TaskView
@@ -353,7 +361,7 @@ Status codes:
 - `metalink`: implemented (resolves first mirror URL, then downloads via HTTP backend)
 - `url` with `ftp`/`ftps`: accepted but backend returns unsupported at runtime
 - `url` with `sftp`: accepted but backend returns unsupported at runtime
-- `magnet` / `torrent`: accepted but backend returns unsupported at runtime
+- `magnet` / `torrent`: implemented (librqbit-backed, with brief seeding before completion)
 
 ## Quick cURL Examples
 

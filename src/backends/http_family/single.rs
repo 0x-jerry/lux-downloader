@@ -103,5 +103,7 @@ fn emit_progress(
         downloaded_bytes: downloaded,
         total_bytes,
         download_rate_bps: rate,
+        uploaded_bytes: 0,
+        upload_rate_bps: 0,
     });
 }

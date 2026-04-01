@@ -24,10 +24,13 @@ pub enum BackendEvent {
     Started {
         total_bytes: Option<u64>,
     },
+    SeedingStarted,
     Progress {
         downloaded_bytes: u64,
         total_bytes: Option<u64>,
         download_rate_bps: u64,
+        uploaded_bytes: u64,
+        upload_rate_bps: u64,
     },
     Completed,
 }
@@ -48,12 +51,17 @@ pub enum BackendError {
     Xml(#[from] quick_xml::DeError),
     #[error("metalink did not contain any usable mirrors")]
     NoMetalinkMirror,
+    #[error("torrent backend error: {0}")]
+    Torrent(String),
 }
 
 #[derive(Clone)]
 pub struct BackendContext {
     pub download_dir: String,
+    pub session_dir: String,
     pub http_chunk_size_bytes: u64,
+    pub default_seeding_ratio_limit: f32,
+    pub default_seeding_time_limit_secs: u64,
 }
 
 #[async_trait]

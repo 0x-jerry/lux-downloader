@@ -27,7 +27,10 @@ impl Scheduler {
             let settings = self.settings.read().await;
             let context = BackendContext {
                 download_dir: settings.download_dir.clone(),
+                session_dir: settings.session_dir.clone(),
                 http_chunk_size_bytes: settings.http_chunk_size_bytes,
+                default_seeding_ratio_limit: settings.default_seeding_ratio_limit,
+                default_seeding_time_limit_secs: settings.default_seeding_time_limit_secs,
             };
             (backend, task.spec.clone(), context)
         };
@@ -71,9 +74,24 @@ impl Scheduler {
                     downloaded_bytes,
                     total_bytes,
                     download_rate_bps,
+                    uploaded_bytes,
+                    upload_rate_bps,
                 } => {
                     let _ = self
-                        .set_progress(id, downloaded_bytes, total_bytes, download_rate_bps)
+                        .set_progress(
+                            id,
+                            downloaded_bytes,
+                            total_bytes,
+                            download_rate_bps,
+                            uploaded_bytes,
+                            upload_rate_bps,
+                        )
+                        .await
+                        .map_err(|err| self.emit_error(id, &err.to_string()));
+                }
+                BackendEvent::SeedingStarted => {
+                    let _ = self
+                        .set_seeding(id)
                         .await
                         .map_err(|err| self.emit_error(id, &err.to_string()));
                 }
@@ -140,13 +158,15 @@ impl Scheduler {
         downloaded_bytes: u64,
         total_bytes: Option<u64>,
         download_rate_bps: u64,
+        uploaded_bytes: u64,
+        upload_rate_bps: u64,
     ) -> Result<(), SchedulerError> {
         let mut tasks = self.tasks.write().await;
         let Some(task) = tasks.get_mut(&id) else {
             return Ok(());
         };
 
-        if task.state != TaskState::Downloading {
+        if !matches!(task.state, TaskState::Downloading | TaskState::Seeding) {
             return Ok(());
         }
 
@@ -155,12 +175,34 @@ impl Scheduler {
             task.progress.total_bytes = total_bytes;
         }
         task.progress.download_rate_bps = download_rate_bps;
+        task.progress.uploaded_bytes = uploaded_bytes;
+        task.progress.upload_rate_bps = upload_rate_bps;
         task.updated_at = Utc::now();
         let cloned = task.clone();
         drop(tasks);
 
         self.store.save_task(&cloned).await?;
         self.emit(Some(id), "task_progress", to_json_value(&cloned));
+        Ok(())
+    }
+
+    async fn set_seeding(&self, id: Uuid) -> Result<(), SchedulerError> {
+        let mut tasks = self.tasks.write().await;
+        let Some(task) = tasks.get_mut(&id) else {
+            return Ok(());
+        };
+
+        if matches!(task.state, TaskState::Paused | TaskState::Removed) {
+            return Ok(());
+        }
+
+        task.state = TaskState::Seeding;
+        task.updated_at = Utc::now();
+        let cloned = task.clone();
+        drop(tasks);
+
+        self.store.save_task(&cloned).await?;
+        self.emit(Some(id), "task_state_changed", to_json_value(&cloned));
         Ok(())
     }
 

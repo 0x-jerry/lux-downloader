@@ -84,6 +84,8 @@ pub async fn download_multi_chunked(
                         downloaded_bytes: downloaded,
                         total_bytes: Some(total_bytes),
                         download_rate_bps: rate,
+                        uploaded_bytes: 0,
+                        upload_rate_bps: 0,
                     });
                 }
             }
@@ -125,6 +127,8 @@ pub async fn download_multi_chunked(
         downloaded_bytes: total_bytes,
         total_bytes: Some(total_bytes),
         download_rate_bps: 0,
+        uploaded_bytes: 0,
+        upload_rate_bps: 0,
     });
     let _ = events.send(BackendEvent::Completed);
     Ok(())
