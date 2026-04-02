@@ -148,8 +148,6 @@ pub(crate) fn check_destination_path(destination: &str) -> Result<PathBuf, Backe
 
     let destination = Path::new(destination).clean();
 
-    tracing::info!("{:?}", destination);
-
     if destination.is_absolute() || destination.starts_with("..") {
         return Err(BackendError::Unsupported(
             "destination_path must stay inside download_dir".to_string(),
