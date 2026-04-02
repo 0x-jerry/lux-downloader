@@ -58,6 +58,14 @@ pub async fn resume_task(
     Ok(Json(json!(task)))
 }
 
+pub async fn restart_task(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let task = state.scheduler.restart_task(id).await?;
+    Ok(Json(json!(task)))
+}
+
 pub async fn remove_task(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,

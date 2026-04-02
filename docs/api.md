@@ -238,6 +238,14 @@ Transitions task to downloading and starts backend execution.
 
 Response `200`: updated `TaskView`
 
+### Restart Failed Task
+
+#### `POST /tasks/{id}/restart`
+
+Restarts a task that is currently in `failed` state by moving it back to `queued` and then starting execution again.
+
+Response `200`: updated `TaskView`
+
 ### Remove Task
 
 #### `POST /tasks/{id}/remove`

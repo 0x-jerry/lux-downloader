@@ -141,6 +141,24 @@ impl Scheduler {
         Ok(task)
     }
 
+    pub async fn restart_task(&self, id: Uuid) -> Result<TaskView, SchedulerError> {
+        let current_state = {
+            let guard = self.tasks.read().await;
+            let task = guard.get(&id).ok_or(SchedulerError::NotFound)?;
+            task.state.clone()
+        };
+
+        if current_state != TaskState::Failed {
+            return Err(SchedulerError::InvalidTransition {
+                from: current_state.to_string(),
+                to: TaskState::Downloading.to_string(),
+            });
+        }
+
+        self.transition(id, TaskState::Queued).await?;
+        self.resume_task(id).await
+    }
+
     pub async fn remove_task(
         &self,
         id: Uuid,

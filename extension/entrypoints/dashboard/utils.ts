@@ -31,6 +31,10 @@ export function canResume(task: Task): boolean {
   return task.state.toLowerCase() === 'paused'
 }
 
+export function canRestart(task: Task): boolean {
+  return task.state.toLowerCase() === 'failed'
+}
+
 export function isTorrentTask(task: Task): boolean {
   return task.spec.source.kind === 'torrent' || task.spec.source.kind === 'magnet'
 }

@@ -19,7 +19,7 @@ export interface RuntimeResponse<T = unknown> {
 
 export interface TaskActionRequest {
   id: string
-  action: 'pause' | 'resume' | 'remove'
+  action: 'pause' | 'resume' | 'restart' | 'remove'
   deleteFile?: boolean
 }
 

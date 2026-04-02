@@ -1,7 +1,7 @@
 import type { Task } from '../../types'
 import type { DashboardState } from '../dashboardState'
 
-type TaskCommand = 'pause' | 'resume' | 'remove'
+type TaskCommand = 'pause' | 'resume' | 'restart' | 'remove'
 
 type TaskManagementModuleParams = {
   state: DashboardState
