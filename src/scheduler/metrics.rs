@@ -1,6 +1,8 @@
 use super::Scheduler;
 use crate::constants::APP_NAME;
 use crate::models::{StatsView, TaskCounts, TaskState};
+use serde_json::Value;
+use uuid::Uuid;
 
 impl Scheduler {
     pub async fn stats(&self) -> StatsView {
@@ -70,5 +72,23 @@ impl Scheduler {
             APP_NAME,
             stats.active_upload_rate_bps,
         )
+    }
+
+    pub async fn torrent_stats(&self, id: Uuid) -> Result<Value, super::SchedulerError> {
+        let (backend, spec) = {
+            let tasks = self.tasks.read().await;
+            let task = tasks.get(&id).ok_or(super::SchedulerError::NotFound)?;
+            let backend = self
+                .find_backend(&task.spec)
+                .ok_or(super::SchedulerError::UnsupportedSource)?;
+            (backend, task.spec.clone())
+        };
+        let context = self.backend_context().await;
+
+        backend
+            .torrent_stats(&spec, &context)
+            .await
+            .map_err(super::SchedulerError::Backend)?
+            .ok_or(super::SchedulerError::UnsupportedSource)
     }
 }

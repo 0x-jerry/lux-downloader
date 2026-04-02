@@ -14,6 +14,8 @@ use uuid::Uuid;
 
 impl Scheduler {
     pub async fn bootstrap(&self) -> Result<(), SchedulerError> {
+        self.init_all_backends().await?;
+
         let loaded = self
             .store
             .list_tasks(&TaskListQuery {
@@ -234,27 +236,7 @@ impl Scheduler {
             return;
         };
 
-        let settings = self.settings.read().await;
-        let context = crate::backends::BackendContext {
-            download_dir: settings.download_dir.clone(),
-            session_dir: settings.session_dir.clone(),
-            http_chunk_size_bytes: settings.http_chunk_size_bytes,
-            default_seeding_ratio_limit: settings.default_seeding_ratio_limit,
-            default_seeding_time_limit_secs: settings.default_seeding_time_limit_secs,
-        };
-        drop(settings);
-
-        if let Err(err) = backend.init(&context).await {
-            self.emit(
-                Some(task.id),
-                "task_warning",
-                json!({
-                    "task_id": task.id,
-                    "message": format!("failed to initialize backend for task {} cleanup: {err}", task.id),
-                }),
-            );
-            return;
-        }
+        let context = self.backend_context().await;
 
         if let Err(err) = backend.cleanup(&task.spec, &context).await {
             self.emit(

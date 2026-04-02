@@ -304,6 +304,64 @@ Response `200`:
 }
 ```
 
+### Torrent Stats
+
+#### `GET /tasks/{id}/torrent-stats`
+
+Returns torrent runtime stats for a torrent/magnet task. Response includes both torrent `files`
+and currently `connected_peers`.
+
+Response `200` example:
+
+```json
+{
+  "torrent_id": 3,
+  "state": "live",
+  "stats": {
+    "state": "live",
+    "file_progress": [1048576, 0],
+    "error": null,
+    "progress_bytes": 1048576,
+    "uploaded_bytes": 0,
+    "total_bytes": 8388608,
+    "finished": false,
+    "live": { "...": "librqbit live stats" }
+  },
+  "name": "ubuntu.iso",
+  "info_hash": "0123456789abcdef0123456789abcdef01234567",
+  "output_folder": "/downloads/ubuntu",
+  "files": [
+    {
+      "name": "ubuntu.iso",
+      "components": ["ubuntu.iso"],
+      "length": 8388608,
+      "included": true,
+      "attributes": {}
+    }
+  ],
+  "connected_peers": [
+    {
+      "address": "203.0.113.10:51413",
+      "state": "live",
+      "counters": {
+        "incoming_connections": 0,
+        "fetched_bytes": 524288,
+        "total_time_connecting_ms": 18,
+        "connection_attempts": 1,
+        "connections": 1,
+        "errors": 0,
+        "fetched_chunks": 32,
+        "downloaded_and_checked_pieces": 2,
+        "total_piece_download_ms": 930,
+        "times_stolen_from_me": 0,
+        "times_i_stole": 0
+      }
+    }
+  ],
+  "connected_peer_count": 1
+}
+```
+
 ### Events WebSocket
 
 #### `GET /events`

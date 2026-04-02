@@ -56,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/tasks/{id}/resume", post(api::resume_task))
         .route("/tasks/{id}/remove", post(api::remove_task))
         .route("/tasks/{id}/verify", post(api::verify_task))
+        .route("/tasks/{id}/torrent-stats", get(api::torrent_stats))
         .route(
             "/settings",
             get(api::get_settings).patch(api::patch_settings),

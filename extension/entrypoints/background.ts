@@ -1,5 +1,7 @@
 import {
+  checkServerHealth,
   createTaskFromLink,
+  getTorrentStats,
   getConfig,
   listTasks,
   saveConfig,
@@ -86,6 +88,17 @@ async function handleMessage(message: unknown): Promise<RuntimeResponse> {
       const payload = request.payload as TaskActionRequest
       const task = await taskAction(payload)
       return { ok: true, data: task }
+    }
+
+    case 'torrent_stats': {
+      const payload = request.payload as { id: string }
+      const stats = await getTorrentStats(payload.id)
+      return { ok: true, data: stats }
+    }
+
+    case 'server_health': {
+      const health = await checkServerHealth()
+      return { ok: true, data: health }
     }
 
     case 'get_config': {

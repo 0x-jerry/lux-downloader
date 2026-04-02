@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::backends::BackendError;
 use crate::models::{CreateTaskRequest, GlobalSettings, RemoveTaskQuery, TaskListQuery, TaskPatch};
 use crate::scheduler::SchedulerError;
 use axum::extract::ws::{Message, WebSocket};
@@ -103,6 +104,14 @@ pub async fn stats(State(state): State<AppState>) -> Result<Json<serde_json::Val
     Ok(Json(json!(stats)))
 }
 
+pub async fn torrent_stats(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let stats = state.scheduler.torrent_stats(id).await?;
+    Ok(Json(stats))
+}
+
 pub async fn metrics(State(state): State<AppState>) -> Result<Response, ApiError> {
     let text = state.scheduler.metrics_text().await;
     Ok(([("content-type", "text/plain; version=0.0.4")], text).into_response())
@@ -176,7 +185,10 @@ impl From<SchedulerError> for ApiError {
             SchedulerError::InvalidTransition { from, to } => {
                 Self::BadRequest(format!("invalid transition from {from} to {to}"))
             }
-            SchedulerError::Backend(message) => Self::Internal(message),
+            SchedulerError::Backend(err) => match err {
+                BackendError::Unsupported(_) => Self::BadRequest(err.to_string()),
+                _ => Self::Internal(err.to_string()),
+            },
             SchedulerError::Store(err) => Self::Internal(err.to_string()),
         }
     }

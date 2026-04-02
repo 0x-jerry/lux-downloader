@@ -15,6 +15,7 @@ use crate::models::TaskSpec;
 use async_trait::async_trait;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, Proxy};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -89,6 +90,14 @@ pub trait TransferBackend: Send + Sync {
         _context: &BackendContext,
     ) -> Result<(), BackendError> {
         Ok(())
+    }
+
+    async fn torrent_stats(
+        &self,
+        _spec: &TaskSpec,
+        _context: &BackendContext,
+    ) -> Result<Option<Value>, BackendError> {
+        Ok(None)
     }
 }
 

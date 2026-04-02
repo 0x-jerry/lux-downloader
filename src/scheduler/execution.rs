@@ -18,27 +18,15 @@ impl Scheduler {
             }
         }
 
-        let (backend, spec, context) = {
+        let (backend, spec) = {
             let tasks = self.tasks.read().await;
             let task = tasks.get(&id).ok_or(SchedulerError::NotFound)?;
             let backend = self
                 .find_backend(&task.spec)
                 .ok_or(SchedulerError::UnsupportedSource)?;
-            let settings = self.settings.read().await;
-            let context = BackendContext {
-                download_dir: settings.download_dir.clone(),
-                session_dir: settings.session_dir.clone(),
-                http_chunk_size_bytes: settings.http_chunk_size_bytes,
-                default_seeding_ratio_limit: settings.default_seeding_ratio_limit,
-                default_seeding_time_limit_secs: settings.default_seeding_time_limit_secs,
-            };
-            (backend, task.spec.clone(), context)
+            (backend, task.spec.clone())
         };
-
-        backend
-            .init(&context)
-            .await
-            .map_err(|err| SchedulerError::Backend(err.to_string()))?;
+        let context = self.backend_context().await;
 
         let cancel = CancellationToken::new();
         {

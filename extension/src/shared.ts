@@ -242,3 +242,27 @@ export async function taskAction(input: TaskActionRequest): Promise<unknown> {
 
   return response.json()
 }
+
+export async function getTorrentStats(taskId: string): Promise<unknown> {
+  const config = await getConfig()
+  const response = await fetch(
+    `${normalizeBaseUrl(config.baseUrl)}/tasks/${taskId}/torrent-stats`,
+    {
+      headers: {
+        Authorization: `Bearer ${config.authToken}`,
+      },
+    },
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to load torrent details: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function checkServerHealth(): Promise<{ connected: boolean }> {
+  const config = await getConfig()
+  const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/health`)
+  return { connected: response.ok }
+}

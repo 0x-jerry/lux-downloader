@@ -2,7 +2,8 @@ use super::{BackendContext, BackendError, BackendEvent, TransferBackend};
 use crate::backends::resolve_destination_path;
 use crate::models::{SourceKind, TaskSpec};
 use async_trait::async_trait;
-use librqbit::{ManagedTorrent, Session, TorrentStats, TorrentStatsState};
+use librqbit::{Api, ManagedTorrent, Session, TorrentStats, TorrentStatsState};
+use serde_json::{Value, json};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -140,6 +141,58 @@ impl TransferBackend for TorrentBackend {
         let _ = cleanup::cleanup_artifacts_folder(spec, &context.download_dir).await;
 
         Ok(())
+    }
+
+    async fn torrent_stats(
+        &self,
+        spec: &TaskSpec,
+        context: &BackendContext,
+    ) -> Result<Option<Value>, BackendError> {
+        let session = session::create_session(&self.session, context).await?;
+        let torrent_id = torrent_id_from_spec(spec).ok_or_else(|| {
+            BackendError::Unsupported(
+                "torrent stats unavailable: task has no assigned torrent_id".to_string(),
+            )
+        })?;
+        let handle = session.get(torrent_id.into()).ok_or_else(|| {
+            BackendError::Unsupported(format!(
+                "torrent stats unavailable: torrent {torrent_id} is not active in session"
+            ))
+        })?;
+
+        let api = Api::new(session.clone(), None);
+        let details = api
+            .api_torrent_details(torrent_id.into())
+            .map_err(|err| BackendError::Torrent(err.to_string()))?;
+
+        let connected_peers = handle
+            .live()
+            .map(|live| live.per_peer_stats_snapshot(Default::default()).peers)
+            .unwrap_or_default();
+
+        let stats = handle.stats();
+        let peers = connected_peers
+            .into_iter()
+            .map(|(addr, peer)| {
+                json!({
+                    "address": addr,
+                    "state": peer.state,
+                    "counters": peer.counters,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        Ok(Some(json!({
+            "torrent_id": torrent_id,
+            "state": stats.state.to_string(),
+            "stats": stats,
+            "name": details.name,
+            "info_hash": details.info_hash,
+            "output_folder": details.output_folder,
+            "files": details.files.unwrap_or_default(),
+            "connected_peers": peers,
+            "connected_peer_count": peers.len(),
+        })))
     }
 }
 

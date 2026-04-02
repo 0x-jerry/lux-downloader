@@ -1,3 +1,4 @@
+use crate::backends::BackendError;
 use crate::persistence::StoreError;
 
 #[derive(Debug, thiserror::Error)]
@@ -12,8 +13,8 @@ pub enum SchedulerError {
     AlreadyRunning,
     #[error("invalid destination path: {0}")]
     InvalidDestination(String),
-    #[error("backend error: {0}")]
-    Backend(String),
+    #[error(transparent)]
+    Backend(#[from] BackendError),
     #[error("invalid state transition from {from} to {to}")]
     InvalidTransition { from: String, to: String },
 }

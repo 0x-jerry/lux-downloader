@@ -64,4 +64,23 @@ impl Scheduler {
             .find(|backend| backend.can_handle(spec))
             .cloned()
     }
+
+    async fn backend_context(&self) -> crate::backends::BackendContext {
+        let settings = self.settings.read().await;
+        crate::backends::BackendContext {
+            download_dir: settings.download_dir.clone(),
+            session_dir: settings.session_dir.clone(),
+            http_chunk_size_bytes: settings.http_chunk_size_bytes,
+            default_seeding_ratio_limit: settings.default_seeding_ratio_limit,
+            default_seeding_time_limit_secs: settings.default_seeding_time_limit_secs,
+        }
+    }
+
+    pub(super) async fn init_all_backends(&self) -> Result<(), SchedulerError> {
+        let context = self.backend_context().await;
+        for backend in self.backends.iter() {
+            backend.init(&context).await.map_err(SchedulerError::Backend)?;
+        }
+        Ok(())
+    }
 }
