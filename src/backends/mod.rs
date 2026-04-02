@@ -7,20 +7,24 @@ mod torrent;
 pub use ftp::FtpBackend;
 pub use http_family::HttpFamilyBackend;
 pub use metalink::MetalinkBackend;
+use path_clean::PathClean;
 pub use sftp::SftpBackend;
 pub use torrent::TorrentBackend;
 
-use crate::models::TaskSpec;
+use crate::models::{GlobalSettings, TaskSpec};
 use async_trait::async_trait;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, Proxy};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Clone)]
 pub enum BackendEvent {
+    TorrentIdAssigned {
+        torrent_id: usize,
+    },
     Started {
         total_bytes: Option<u64>,
     },
@@ -68,6 +72,9 @@ pub struct BackendContext {
 pub trait TransferBackend: Send + Sync {
     fn name(&self) -> &'static str;
     fn can_handle(&self, spec: &TaskSpec) -> bool;
+    async fn init(&self, _context: &BackendContext) -> Result<(), BackendError> {
+        Ok(())
+    }
     async fn run(
         &self,
         spec: TaskSpec,
@@ -75,6 +82,14 @@ pub trait TransferBackend: Send + Sync {
         cancel: CancellationToken,
         events: mpsc::UnboundedSender<BackendEvent>,
     ) -> Result<(), BackendError>;
+
+    async fn cleanup(
+        &self,
+        _spec: &TaskSpec,
+        _context: &BackendContext,
+    ) -> Result<(), BackendError> {
+        Ok(())
+    }
 }
 
 pub fn default_backends() -> Vec<Arc<dyn TransferBackend>> {
@@ -82,7 +97,7 @@ pub fn default_backends() -> Vec<Arc<dyn TransferBackend>> {
         Arc::new(HttpFamilyBackend),
         Arc::new(FtpBackend),
         Arc::new(SftpBackend),
-        Arc::new(TorrentBackend),
+        Arc::new(TorrentBackend::default()),
         Arc::new(MetalinkBackend),
     ]
 }
@@ -115,39 +130,31 @@ pub(crate) fn build_client(spec: &TaskSpec) -> Result<Client, BackendError> {
     Ok(builder.build()?)
 }
 
-pub(crate) fn resolve_destination_path(
-    download_dir: &str,
-    destination: &str,
-) -> Result<PathBuf, BackendError> {
+pub(crate) fn check_destination_path(destination: &str) -> Result<PathBuf, BackendError> {
     if destination.trim().is_empty() {
         return Err(BackendError::Unsupported(
             "destination_path cannot be empty".to_string(),
         ));
     }
 
-    let mut relative = PathBuf::new();
-    for component in Path::new(destination).components() {
-        match component {
-            Component::CurDir => {}
-            Component::Normal(part) => relative.push(part),
-            Component::ParentDir => {
-                return Err(BackendError::Unsupported(
-                    "destination_path must not contain '..'".to_string(),
-                ));
-            }
-            Component::RootDir | Component::Prefix(_) => {
-                return Err(BackendError::Unsupported(
-                    "destination_path must be relative to download_dir".to_string(),
-                ));
-            }
-        }
-    }
+    let destination = Path::new(destination).clean();
 
-    if relative.as_os_str().is_empty() {
+    tracing::info!("{:?}", destination);
+
+    if destination.is_absolute() || destination.starts_with("..") {
         return Err(BackendError::Unsupported(
-            "destination_path cannot resolve to current directory".to_string(),
+            "destination_path must stay inside download_dir".to_string(),
         ));
     }
 
-    Ok(Path::new(download_dir).join(relative))
+    Ok(destination)
+}
+
+pub(crate) fn resolve_destination_path(
+    download_dir: &str,
+    destination: &str,
+) -> Result<PathBuf, BackendError> {
+    let dest = Path::new(download_dir).join(destination);
+
+    Ok(dest)
 }

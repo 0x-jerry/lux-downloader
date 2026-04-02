@@ -1,10 +1,11 @@
-use super::{
-    BackendContext, BackendError, BackendEvent, TransferBackend, build_client,
-    resolve_destination_path,
+use super::{BackendContext, BackendError, BackendEvent, TransferBackend, build_client};
+use crate::{
+    backends::resolve_destination_path,
+    models::{SourceKind, TaskSpec},
 };
-use crate::models::{SourceKind, TaskSpec};
 use async_trait::async_trait;
 use reqwest::Url;
+use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 

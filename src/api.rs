@@ -176,6 +176,7 @@ impl From<SchedulerError> for ApiError {
             SchedulerError::InvalidTransition { from, to } => {
                 Self::BadRequest(format!("invalid transition from {from} to {to}"))
             }
+            SchedulerError::Backend(message) => Self::Internal(message),
             SchedulerError::Store(err) => Self::Internal(err.to_string()),
         }
     }

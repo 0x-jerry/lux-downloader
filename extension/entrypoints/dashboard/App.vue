@@ -9,6 +9,7 @@ type Task = {
     downloaded_bytes: number
     total_bytes: number | null
     download_rate_bps: number
+    upload_rate_bps: number
   }
   spec: {
     source: { value: string }
@@ -18,8 +19,15 @@ type Task = {
 
 const tasks = ref<Task[]>([])
 const taskStatus = ref('')
+const createTaskStatus = ref('')
+const creatingTask = ref(false)
 const configStatus = ref('')
 const savingConfig = ref(false)
+const removeDialogOpen = ref(false)
+const removeDialogTaskId = ref<string | null>(null)
+const removeDeleteFile = ref(false)
+const newTaskUrl = ref('')
+const newTaskReferer = ref('')
 let timer: number | undefined
 
 const form = reactive<LuxConfig>({
@@ -63,10 +71,55 @@ async function loadConfig() {
   Object.assign(form, response.data)
 }
 
+async function createTask() {
+  if (!newTaskUrl.value.trim()) {
+    createTaskStatus.value = 'Enter a URL first.'
+    return
+  }
+
+  creatingTask.value = true
+  createTaskStatus.value = 'Creating task...'
+
+  try {
+    const response = await browser.runtime.sendMessage({
+      action: 'manual_add_task',
+      payload: {
+        url: newTaskUrl.value.trim(),
+        referer: newTaskReferer.value.trim(),
+      },
+    })
+
+    if (!response?.ok) {
+      createTaskStatus.value = response?.error ?? 'Failed to create task'
+      return
+    }
+
+    createTaskStatus.value = `Task created: ${response.data.id}`
+    newTaskUrl.value = ''
+    newTaskReferer.value = ''
+    await loadTasks()
+  } finally {
+    creatingTask.value = false
+  }
+}
+
 async function action(id: string, command: 'pause' | 'resume' | 'remove') {
+  if (command === 'remove') {
+    openRemoveDialog(id)
+    return
+  }
+
+  await runTaskAction(id, command)
+}
+
+async function runTaskAction(
+  id: string,
+  command: 'pause' | 'resume' | 'remove',
+  deleteFile?: boolean,
+) {
   const response = await browser.runtime.sendMessage({
     action: 'task_action',
-    payload: { id, action: command },
+    payload: { id, action: command, deleteFile },
   })
 
   if (!response?.ok) {
@@ -76,6 +129,29 @@ async function action(id: string, command: 'pause' | 'resume' | 'remove') {
 
   taskStatus.value = `${command} succeeded`
   await loadTasks()
+}
+
+function openRemoveDialog(id: string) {
+  removeDialogTaskId.value = id
+  removeDeleteFile.value = false
+  removeDialogOpen.value = true
+}
+
+function cancelRemoveDialog() {
+  removeDialogOpen.value = false
+  removeDialogTaskId.value = null
+  removeDeleteFile.value = false
+}
+
+async function confirmRemoveDialog() {
+  const id = removeDialogTaskId.value
+  if (!id) {
+    return
+  }
+
+  const deleteFile = removeDeleteFile.value
+  cancelRemoveDialog()
+  await runTaskAction(id, 'remove', deleteFile)
 }
 
 async function saveConfig() {
@@ -112,8 +188,9 @@ async function saveConfig() {
 function progressText(task: Task): string {
   const downloaded = formatBytes(task.progress.downloaded_bytes)
   const total = task.progress.total_bytes ? formatBytes(task.progress.total_bytes) : '?'
-  const rate = formatBytes(task.progress.download_rate_bps) + '/s'
-  return `${downloaded} / ${total} (${rate})`
+  const downRate = formatBytes(task.progress.download_rate_bps) + '/s'
+  const upRate = formatBytes(task.progress.upload_rate_bps) + '/s'
+  return `${downloaded} / ${total} (Down ${downRate}, Up ${upRate})`
 }
 
 function canPause(task: Task): boolean {
@@ -123,6 +200,15 @@ function canPause(task: Task): boolean {
 
 function canResume(task: Task): boolean {
   return task.state.toLowerCase() === 'paused'
+}
+
+function taskTitle(taskId: string | null): string {
+  if (!taskId) {
+    return ''
+  }
+
+  const task = tasks.value.find((item) => item.id === taskId)
+  return task?.spec.destination_path || taskId
 }
 
 function formatBytes(bytes: number): string {
@@ -184,6 +270,24 @@ function formatBytes(bytes: number): string {
 
       <section class="card tasks">
         <h2>Tasks</h2>
+        <form class="add-task-form" @submit.prevent="createTask">
+          <label>
+            URL
+            <input
+              v-model="newTaskUrl"
+              type="text"
+              placeholder="https://example.com/file.zip or magnet:..."
+            />
+          </label>
+          <label>
+            Referer (optional)
+            <input v-model="newTaskReferer" type="url" placeholder="https://origin-page.example/" />
+          </label>
+          <div class="row">
+            <button :disabled="creatingTask" type="submit">Add Task</button>
+            <p class="status">{{ createTaskStatus }}</p>
+          </div>
+        </form>
         <p class="status">{{ taskStatus }}</p>
         <section class="task-list">
           <article v-for="task in tasks" :key="task.id" class="task">
@@ -200,6 +304,21 @@ function formatBytes(bytes: number): string {
           </article>
           <p v-if="!tasks.length">No tasks yet.</p>
         </section>
+      </section>
+    </div>
+
+    <div v-if="removeDialogOpen" class="dialog-backdrop" @click.self="cancelRemoveDialog">
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="remove-task-title">
+        <h3 id="remove-task-title">Remove task?</h3>
+        <p class="dialog-text">{{ taskTitle(removeDialogTaskId) }}</p>
+        <label class="checkbox">
+          <input v-model="removeDeleteFile" type="checkbox" />
+          Delete downloaded file from disk
+        </label>
+        <div class="dialog-actions">
+          <button @click="cancelRemoveDialog">Cancel</button>
+          <button class="danger" @click="confirmRemoveDialog">Remove</button>
+        </div>
       </section>
     </div>
   </main>
@@ -295,6 +414,12 @@ input[type='text'] {
   gap: 10px;
 }
 
+.add-task-form {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .task {
   border: 1px solid #e2e8f0;
   background: #fff;
@@ -325,6 +450,38 @@ h3 {
 .danger {
   border-color: #fca5a5;
   color: #b91c1c;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(15 23 42 / 35%);
+  display: grid;
+  place-items: center;
+  padding: 14px;
+}
+
+.dialog {
+  width: min(420px, 100%);
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.dialog-text {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 @media (max-width: 860px) {

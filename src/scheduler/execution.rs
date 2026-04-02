@@ -3,7 +3,7 @@ use crate::backends::{BackendContext, BackendError, BackendEvent, TransferBacken
 use crate::models::{TaskSpec, TaskState};
 use crate::persistence::to_json_value;
 use chrono::Utc;
-use serde_json::json;
+use serde_json::{Map, Number, Value, json};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -35,6 +35,11 @@ impl Scheduler {
             (backend, task.spec.clone(), context)
         };
 
+        backend
+            .init(&context)
+            .await
+            .map_err(|err| SchedulerError::Backend(err.to_string()))?;
+
         let cancel = CancellationToken::new();
         {
             let mut guard = self.active.write().await;
@@ -64,6 +69,12 @@ impl Scheduler {
 
         while let Some(event) = rx.recv().await {
             match event {
+                BackendEvent::TorrentIdAssigned { torrent_id } => {
+                    let _ = self
+                        .set_torrent_id(id, torrent_id)
+                        .await
+                        .map_err(|err| self.emit_error(id, &err.to_string()));
+                }
                 BackendEvent::Started { total_bytes } => {
                     let _ = self
                         .set_download_started(id, total_bytes)
@@ -149,6 +160,29 @@ impl Scheduler {
 
         self.store.save_task(&cloned).await?;
         self.emit(Some(id), "task_started", to_json_value(&cloned));
+        Ok(())
+    }
+
+    async fn set_torrent_id(&self, id: Uuid, torrent_id: usize) -> Result<(), SchedulerError> {
+        let mut tasks = self.tasks.write().await;
+        let Some(task) = tasks.get_mut(&id) else {
+            return Ok(());
+        };
+
+        let mut protocol_options = match task.spec.protocol_options.take() {
+            Some(Value::Object(map)) => map,
+            _ => Map::new(),
+        };
+        protocol_options.insert(
+            "torrent_id".to_string(),
+            Value::Number(Number::from(torrent_id as u64)),
+        );
+        task.spec.protocol_options = Some(Value::Object(protocol_options));
+        task.updated_at = Utc::now();
+        let cloned = task.clone();
+        drop(tasks);
+
+        self.store.save_task(&cloned).await?;
         Ok(())
     }
 

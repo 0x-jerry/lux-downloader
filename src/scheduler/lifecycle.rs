@@ -1,7 +1,7 @@
 use super::source::resolve_source_kind;
 use super::transitions::validate_transition;
 use super::{Scheduler, SchedulerError};
-use crate::backends::resolve_destination_path;
+use crate::backends::{check_destination_path, resolve_destination_path};
 use crate::models::{
     GlobalSettings, SourceKind, TaskListQuery, TaskPatch, TaskProgress, TaskRuntimeSettings,
     TaskSpec, TaskState, TaskView,
@@ -63,12 +63,12 @@ impl Scheduler {
         if spec.settings.is_none() {
             spec.settings = Some(TaskRuntimeSettings::default());
         }
+
+        let normalized_destination = check_destination_path(&spec.destination_path)
+            .map_err(|err| SchedulerError::InvalidDestination(err.to_string()))?;
+        spec.destination_path = normalized_destination.to_string_lossy().to_string();
+
         resolve_source_kind(&mut spec)?;
-        {
-            let settings = self.settings.read().await;
-            resolve_destination_path(&settings.download_dir, &spec.destination_path)
-                .map_err(|err| SchedulerError::InvalidDestination(err.to_string()))?;
-        }
 
         let backend_name = self
             .find_backend(&spec)
@@ -139,7 +139,11 @@ impl Scheduler {
         Ok(task)
     }
 
-    pub async fn remove_task(&self, id: Uuid, delete_file: bool) -> Result<TaskView, SchedulerError> {
+    pub async fn remove_task(
+        &self,
+        id: Uuid,
+        delete_file: bool,
+    ) -> Result<TaskView, SchedulerError> {
         self.cancel_task(id).await;
 
         let mut guard = self.tasks.write().await;
@@ -158,6 +162,7 @@ impl Scheduler {
 
         if delete_file {
             self.delete_task_file(&removed).await;
+            self.cleanup_task_backend_artifacts(&removed).await;
         }
 
         Ok(removed)
@@ -195,31 +200,17 @@ impl Scheduler {
     }
 
     async fn delete_task_file(&self, task: &TaskView) {
-        let settings = self.settings.read().await;
-        let path = match resolve_destination_path(&settings.download_dir, &task.spec.destination_path)
-        {
-            Ok(path) => path,
-            Err(err) => {
-                self.emit(
-                    Some(task.id),
-                    "task_warning",
-                    json!({
-                        "task_id": task.id,
-                        "message": format!("failed to resolve task file path for deletion: {err}"),
-                    }),
-                );
-                return;
-            }
-        };
-        drop(settings);
+        let download_dir = self.settings().await.download_dir;
+        let path = resolve_destination_path(&download_dir, &task.spec.destination_path).unwrap();
+        let path = path.as_path();
 
         let remove_result = if matches!(
             task.spec.source.kind,
             SourceKind::Torrent | SourceKind::Magnet
         ) {
-            tokio::fs::remove_dir_all(&path).await
+            tokio::fs::remove_dir_all(path).await
         } else {
-            tokio::fs::remove_file(&path).await
+            tokio::fs::remove_file(path).await
         };
 
         match remove_result {
@@ -235,6 +226,45 @@ impl Scheduler {
                     }),
                 );
             }
+        }
+    }
+
+    async fn cleanup_task_backend_artifacts(&self, task: &TaskView) {
+        let Some(backend) = self.find_backend(&task.spec) else {
+            return;
+        };
+
+        let settings = self.settings.read().await;
+        let context = crate::backends::BackendContext {
+            download_dir: settings.download_dir.clone(),
+            session_dir: settings.session_dir.clone(),
+            http_chunk_size_bytes: settings.http_chunk_size_bytes,
+            default_seeding_ratio_limit: settings.default_seeding_ratio_limit,
+            default_seeding_time_limit_secs: settings.default_seeding_time_limit_secs,
+        };
+        drop(settings);
+
+        if let Err(err) = backend.init(&context).await {
+            self.emit(
+                Some(task.id),
+                "task_warning",
+                json!({
+                    "task_id": task.id,
+                    "message": format!("failed to initialize backend for task {} cleanup: {err}", task.id),
+                }),
+            );
+            return;
+        }
+
+        if let Err(err) = backend.cleanup(&task.spec, &context).await {
+            self.emit(
+                Some(task.id),
+                "task_warning",
+                json!({
+                    "task_id": task.id,
+                    "message": format!("failed to cleanup backend artifacts for task {}: {err}", task.id),
+                }),
+            );
         }
     }
 }

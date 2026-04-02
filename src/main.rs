@@ -38,13 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let store = Store::connect(&bootstrap.settings.db_path).await?;
     store.init().await?;
 
-    let settings = match store.load_global_settings().await? {
-        Some(value) => value,
-        None => {
-            store.upsert_global_settings(&bootstrap.settings).await?;
-            bootstrap.settings.clone()
-        }
-    };
+    let settings = bootstrap.settings.clone();
 
     if settings.auth_token == "change-me" {
         warn!("AUTH_TOKEN is default value 'change-me'; set AUTH_TOKEN in production");

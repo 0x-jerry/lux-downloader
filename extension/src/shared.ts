@@ -20,6 +20,7 @@ export interface RuntimeResponse<T = unknown> {
 export interface TaskActionRequest {
   id: string
   action: 'pause' | 'resume' | 'remove'
+  deleteFile?: boolean
 }
 
 const DEFAULT_CONFIG: LuxConfig = {
@@ -223,8 +224,10 @@ export async function listTasks(): Promise<unknown> {
 
 export async function taskAction(input: TaskActionRequest): Promise<unknown> {
   const config = await getConfig()
+  const query =
+    input.action === 'remove' && input.deleteFile ? '?delete_file=true' : ''
   const response = await fetch(
-    `${normalizeBaseUrl(config.baseUrl)}/tasks/${input.id}/${input.action}`,
+    `${normalizeBaseUrl(config.baseUrl)}/tasks/${input.id}/${input.action}${query}`,
     {
       method: 'POST',
       headers: {
