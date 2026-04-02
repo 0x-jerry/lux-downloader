@@ -12,7 +12,9 @@ pub(super) struct TorrentProtocolOptions {
     pub(super) only_files_regex: Option<String>,
 }
 
-pub(super) fn parse_protocol_options(spec: &TaskSpec) -> Result<TorrentProtocolOptions, BackendError> {
+pub(super) fn parse_protocol_options(
+    spec: &TaskSpec,
+) -> Result<TorrentProtocolOptions, BackendError> {
     let Some(protocol_options) = spec.protocol_options.as_ref() else {
         return Ok(TorrentProtocolOptions::default());
     };

@@ -21,9 +21,12 @@ pub(super) async fn create_session(
                 ..Default::default()
             };
 
-            Session::new_with_opts(Path::new(&context.download_dir).to_path_buf(), session_options)
-                .await
-                .map_err(map_torrent_error)
+            Session::new_with_opts(
+                Path::new(&context.download_dir).to_path_buf(),
+                session_options,
+            )
+            .await
+            .map_err(map_torrent_error)
         })
         .await
         .cloned()

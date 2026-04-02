@@ -64,7 +64,8 @@ mod tests {
     #[test]
     fn completes_when_ratio_reached() {
         let start = Instant::now();
-        let finished = should_finish_seeding(Some(start), BRIEF_SEEDING_CAP_SECS, Some(1.0), 100, 100);
+        let finished =
+            should_finish_seeding(Some(start), BRIEF_SEEDING_CAP_SECS, Some(1.0), 100, 100);
         assert!(finished);
     }
 

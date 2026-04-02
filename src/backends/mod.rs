@@ -11,7 +11,7 @@ use path_clean::PathClean;
 pub use sftp::SftpBackend;
 pub use torrent::TorrentBackend;
 
-use crate::models::{GlobalSettings, TaskSpec};
+use crate::models::TaskSpec;
 use async_trait::async_trait;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, Proxy};

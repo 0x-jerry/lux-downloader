@@ -4,7 +4,9 @@ use crate::models::{SourceKind, TaskSpec};
 use librqbit::AddTorrent;
 use reqwest::Url;
 
-pub(super) async fn create_add_torrent(spec: &TaskSpec) -> Result<AddTorrent<'static>, BackendError> {
+pub(super) async fn create_add_torrent(
+    spec: &TaskSpec,
+) -> Result<AddTorrent<'static>, BackendError> {
     match spec.source.kind {
         SourceKind::Magnet => Ok(AddTorrent::from_url(spec.source.value.clone())),
         SourceKind::Torrent => {

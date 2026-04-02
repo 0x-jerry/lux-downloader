@@ -5,7 +5,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use reqwest::Url;
-use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 

@@ -84,6 +84,7 @@ impl Store {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn load_global_settings(&self) -> Result<Option<GlobalSettings>, StoreError> {
         let row = sqlx::query("SELECT data_json FROM global_settings WHERE id = 1")
             .fetch_optional(&self.pool)
