@@ -190,6 +190,8 @@ impl From<SchedulerError> for ApiError {
                 Self::BadRequest("task is already running".to_string())
             }
             SchedulerError::InvalidDestination(message) => Self::BadRequest(message),
+            SchedulerError::InvalidSource(message) => Self::BadRequest(message),
+            SchedulerError::InvalidPatch(message) => Self::BadRequest(message),
             SchedulerError::InvalidTransition { from, to } => {
                 Self::BadRequest(format!("invalid transition from {from} to {to}"))
             }

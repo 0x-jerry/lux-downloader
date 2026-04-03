@@ -70,7 +70,28 @@ impl Scheduler {
             .map_err(|err| SchedulerError::InvalidDestination(err.to_string()))?;
         spec.destination_path = normalized_destination.to_string_lossy().to_string();
 
+        let download_dir = self.settings().await.download_dir;
+        let resolved_destination = resolve_destination_path(&download_dir, &spec.destination_path)
+            .map_err(|err| SchedulerError::InvalidDestination(err.to_string()))?;
+        match tokio::fs::metadata(&resolved_destination).await {
+            Ok(_) if !spec.overwrite_existing => {
+                return Err(SchedulerError::InvalidDestination(format!(
+                    "destination already exists: {} (set overwrite_existing=true to replace)",
+                    spec.destination_path
+                )));
+            }
+            Ok(_) => {}
+            Err(err) if err.kind() == ErrorKind::NotFound => {}
+            Err(err) => {
+                return Err(SchedulerError::InvalidDestination(format!(
+                    "failed to inspect destination {}: {err}",
+                    spec.destination_path
+                )));
+            }
+        }
+
         resolve_source_kind(&mut spec)?;
+        self.ensure_source_not_duplicated(&spec).await?;
 
         let backend_name = self
             .find_backend(&spec)
@@ -101,6 +122,24 @@ impl Scheduler {
         Ok(task)
     }
 
+    async fn ensure_source_not_duplicated(&self, spec: &TaskSpec) -> Result<(), SchedulerError> {
+        let expected_kind = spec.source.kind;
+        let expected_value = normalize_source_value(&spec.source.value);
+        let guard = self.tasks.read().await;
+
+        if let Some(existing_task) = guard.values().find(|task| {
+            task.spec.source.kind == expected_kind
+                && normalize_source_value(&task.spec.source.value) == expected_value
+        }) {
+            return Err(SchedulerError::InvalidSource(format!(
+                "source already exists in task {}",
+                existing_task.id
+            )));
+        }
+
+        Ok(())
+    }
+
     pub async fn list_tasks(&self, query: &TaskListQuery) -> Result<Vec<TaskView>, SchedulerError> {
         self.store
             .list_tasks(query)
@@ -115,6 +154,29 @@ impl Scheduler {
     pub async fn patch_task(&self, id: Uuid, patch: TaskPatch) -> Result<TaskView, SchedulerError> {
         let mut guard = self.tasks.write().await;
         let task = guard.get_mut(&id).ok_or(SchedulerError::NotFound)?;
+
+        if let Some(source) = patch.source {
+            if task.state == TaskState::Completed {
+                return Err(SchedulerError::InvalidPatch(
+                    "cannot change source for completed task".to_string(),
+                ));
+            }
+
+            let previous_source_kind = task.spec.source.kind;
+            let mut next_spec = task.spec.clone();
+            next_spec.source = source;
+            resolve_source_kind(&mut next_spec)?;
+            if next_spec.source.kind != previous_source_kind {
+                return Err(SchedulerError::InvalidPatch(
+                    "cannot change source kind".to_string(),
+                ));
+            }
+            if self.find_backend(&next_spec).is_none() {
+                return Err(SchedulerError::UnsupportedSource);
+            }
+            task.spec.source = next_spec.source;
+        }
+
         if let Some(settings) = patch.settings {
             task.spec.settings = Some(settings);
         }
@@ -267,4 +329,11 @@ impl Scheduler {
             );
         }
     }
+}
+
+fn normalize_source_value(value: &str) -> String {
+    let trimmed = value.trim();
+    reqwest::Url::parse(trimmed)
+        .map(|parsed| parsed.to_string())
+        .unwrap_or_else(|_| trimmed.to_string())
 }

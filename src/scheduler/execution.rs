@@ -26,6 +26,10 @@ impl Scheduler {
                 .ok_or(SchedulerError::UnsupportedSource)?;
             (backend, task.spec.clone())
         };
+
+        if spec.overwrite_existing {
+            self.consume_overwrite_existing(id).await?;
+        }
         let context = self.backend_context().await;
 
         let cancel = CancellationToken::new();
@@ -41,6 +45,23 @@ impl Scheduler {
                 .await;
         });
 
+        Ok(())
+    }
+
+    async fn consume_overwrite_existing(&self, id: Uuid) -> Result<(), SchedulerError> {
+        let mut tasks = self.tasks.write().await;
+        let Some(task) = tasks.get_mut(&id) else {
+            return Ok(());
+        };
+        if !task.spec.overwrite_existing {
+            return Ok(());
+        }
+
+        task.spec.overwrite_existing = false;
+        let cloned = task.clone();
+        drop(tasks);
+
+        self.store.save_task(&cloned).await?;
         Ok(())
     }
 

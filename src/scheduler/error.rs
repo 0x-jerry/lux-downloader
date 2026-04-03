@@ -13,6 +13,10 @@ pub enum SchedulerError {
     AlreadyRunning,
     #[error("invalid destination path: {0}")]
     InvalidDestination(String),
+    #[error("invalid source: {0}")]
+    InvalidSource(String),
+    #[error("invalid patch: {0}")]
+    InvalidPatch(String),
     #[error(transparent)]
     Backend(#[from] BackendError),
     #[error("invalid state transition from {from} to {to}")]

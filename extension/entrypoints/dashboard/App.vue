@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import type { Task } from './types'
+import ChangeSourceDialog from './components/ChangeSourceDialog.vue'
 import RemoveTaskDialog from './components/RemoveTaskDialog.vue'
 import SettingsCard from './components/SettingsCard.vue'
 import TorrentDetailDialog from './components/TorrentDetailDialog.vue'
@@ -11,6 +13,10 @@ const dashboard = useDashboard()
 
 const removeTaskTitle = computed(() => dashboard.taskTitle(dashboard.state.removeDialogTaskId))
 const torrentTaskTitle = computed(() => dashboard.taskTitle(dashboard.state.torrentDialogTaskId))
+const sourceDialogOpen = ref(false)
+const sourceDialogTaskId = ref<string | null>(null)
+const sourceDialogValue = ref('')
+const sourceDialogTaskTitle = computed(() => dashboard.taskTitle(sourceDialogTaskId.value))
 const activeTorrentDetail = computed(() => {
   const taskId = dashboard.state.torrentDialogTaskId
   if (!taskId) {
@@ -39,6 +45,30 @@ onUnmounted(() => {
 
 function refreshAll() {
   void Promise.all([dashboard.loadTasks(), dashboard.refreshServerHealth()])
+}
+
+function openChangeSourceDialog(task: Task) {
+  sourceDialogTaskId.value = task.id
+  sourceDialogValue.value = task.spec.source.value
+  sourceDialogOpen.value = true
+}
+
+function closeChangeSourceDialog() {
+  sourceDialogOpen.value = false
+  sourceDialogTaskId.value = null
+  sourceDialogValue.value = ''
+}
+
+async function confirmChangeSourceDialog() {
+  const taskId = sourceDialogTaskId.value
+  if (!taskId) {
+    return
+  }
+
+  const success = await dashboard.updateTaskSource(taskId, sourceDialogValue.value)
+  if (success) {
+    closeChangeSourceDialog()
+  }
 }
 </script>
 
@@ -75,10 +105,20 @@ function refreshAll() {
         <TaskList
           :tasks="dashboard.state.tasks"
           @action="dashboard.action"
+          @open-change-source="openChangeSourceDialog"
           @open-torrent-details="dashboard.openTorrentDetails"
         />
       </section>
     </div>
+
+    <ChangeSourceDialog
+      :open="sourceDialogOpen"
+      :task-title="sourceDialogTaskTitle"
+      :value="sourceDialogValue"
+      @cancel="closeChangeSourceDialog"
+      @confirm="confirmChangeSourceDialog"
+      @update:value="sourceDialogValue = $event"
+    />
 
     <TorrentDetailDialog
       :open="dashboard.state.torrentDialogOpen"

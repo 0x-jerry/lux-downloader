@@ -89,6 +89,7 @@ export function useDashboard() {
     loadTasks: taskManagement.loadTasks,
     createTask: taskManagement.createTask,
     action: taskManagement.action,
+    updateTaskSource: taskManagement.updateTaskSource,
     saveConfig: configSettings.saveConfig,
     refreshServerHealth: serverHealth.refreshServerHealth,
     cancelRemoveDialog: taskManagement.cancelRemoveDialog,

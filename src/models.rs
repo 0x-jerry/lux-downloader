@@ -206,6 +206,7 @@ pub struct TaskListQuery {
 pub struct TaskPatch {
     pub settings: Option<TaskRuntimeSettings>,
     pub concurrency: Option<u32>,
+    pub source: Option<SourceInput>,
 }
 
 #[derive(Debug, Deserialize)]

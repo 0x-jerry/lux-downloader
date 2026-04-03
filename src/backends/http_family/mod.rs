@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use reqwest::Url;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, error};
 
 mod io;
 mod multi;
@@ -17,6 +18,12 @@ const MAX_THREADS: u32 = 32;
 const MIN_HTTP_CHUNK_SIZE_BYTES: u64 = 64 * 1024;
 
 pub struct HttpFamilyBackend;
+
+#[derive(Debug)]
+enum DownloadPlan {
+    Single,
+    Multi { total_bytes: u64, thread_count: u32 },
+}
 
 #[async_trait]
 impl TransferBackend for HttpFamilyBackend {
@@ -58,36 +65,78 @@ impl TransferBackend for HttpFamilyBackend {
             io::file_size(&destination).await?
         };
         let desired_threads = spec.concurrency.unwrap_or(1).clamp(1, MAX_THREADS);
+        let plan =
+            plan_download_mode(&client, &url, desired_threads, existing_bytes, chunk_size).await?;
 
-        if desired_threads > 1 && existing_bytes == 0 {
-            if let Some(total_bytes) = probe::probe_range_support(&client, &url).await? {
-                let thread_count = compute_thread_count(desired_threads, total_bytes, chunk_size);
-                if thread_count > 1 {
-                    return multi::download_multi_chunked(
-                        client,
-                        url,
-                        destination,
-                        total_bytes,
-                        thread_count,
-                        chunk_size,
-                        cancel,
-                        events,
-                    )
-                    .await;
-                }
+        let result = match plan {
+            DownloadPlan::Multi {
+                total_bytes,
+                thread_count,
+            } => multi::download_multi_chunked(
+                client,
+                url.clone(),
+                destination.clone(),
+                total_bytes,
+                thread_count,
+                chunk_size,
+                cancel,
+                events,
+            )
+            .await,
+            DownloadPlan::Single => {
+                single::download_single_stream(
+                    client,
+                    url.clone(),
+                    destination.clone(),
+                    existing_bytes,
+                    chunk_size,
+                    cancel,
+                    events,
+                )
+                .await
+            }
+        };
+
+        if let Err(err) = &result {
+            if !matches!(err, BackendError::Cancelled) {
+                error!(
+                    %url,
+                    destination = %destination.display(),
+                    error = %err,
+                    "http download failed"
+                );
             }
         }
 
-        single::download_single_stream(
-            client,
-            url,
-            destination,
-            existing_bytes,
-            chunk_size,
-            cancel,
-            events,
-        )
-        .await
+        result
+    }
+}
+
+async fn plan_download_mode(
+    client: &reqwest::Client,
+    url: &Url,
+    desired_threads: u32,
+    existing_bytes: u64,
+    chunk_size: u64,
+) -> Result<DownloadPlan, BackendError> {
+    if desired_threads <= 1 || existing_bytes > 0 {
+        return Ok(DownloadPlan::Single);
+    }
+
+    let total_bytes = match probe::probe_range_support(client, url).await? {
+        Some(bytes) => bytes,
+        None => return Ok(DownloadPlan::Single),
+    };
+
+    let thread_count = compute_thread_count(desired_threads, total_bytes, chunk_size);
+    if thread_count > 1 {
+        debug!(%url, total_bytes, thread_count, "http download will use multi-thread mode");
+        Ok(DownloadPlan::Multi {
+            total_bytes,
+            thread_count,
+        })
+    } else {
+        Ok(DownloadPlan::Single)
     }
 }
 

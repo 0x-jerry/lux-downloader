@@ -97,6 +97,36 @@ export function useTaskManagement({
     await loadTasks()
   }
 
+  async function updateTaskSource(id: string, source: string): Promise<boolean> {
+    const sourceValue = source.trim()
+    if (!sourceValue) {
+      state.taskStatus = 'Source cannot be empty.'
+      return false
+    }
+
+    const response = await browser.runtime.sendMessage({
+      action: 'patch_task',
+      payload: {
+        id,
+        patch: {
+          source: {
+            kind: 'auto',
+            value: sourceValue,
+          },
+        },
+      },
+    })
+
+    if (!response?.ok) {
+      state.taskStatus = response?.error ?? 'Failed to update source'
+      return false
+    }
+
+    state.taskStatus = 'Task source updated'
+    await loadTasks()
+    return true
+  }
+
   function openRemoveDialog(id: string) {
     state.removeDialogTaskId = id
     state.removeDeleteFile = false
@@ -124,6 +154,7 @@ export function useTaskManagement({
     loadTasks,
     createTask,
     action,
+    updateTaskSource,
     cancelRemoveDialog,
     confirmRemoveDialog,
   }

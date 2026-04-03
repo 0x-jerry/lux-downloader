@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import type { Task } from '../types'
-import { canPause, canRestart, canResume, isTorrentTask, progressText } from '../utils'
+import {
+  canChangeSource,
+  canPause,
+  canRestart,
+  canResume,
+  isTorrentTask,
+  progressText,
+} from '../utils'
 
 defineProps<{
   tasks: Task[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   action: [id: string, command: 'pause' | 'resume' | 'restart' | 'remove']
   openTorrentDetails: [task: Task]
+  openChangeSource: [task: Task]
 }>()
 </script>
 
@@ -25,6 +33,7 @@ defineEmits<{
         <button v-if="canPause(task)" @click="$emit('action', task.id, 'pause')">Pause</button>
         <button v-else-if="canResume(task)" @click="$emit('action', task.id, 'resume')">Resume</button>
         <button v-else-if="canRestart(task)" @click="$emit('action', task.id, 'restart')">Restart</button>
+        <button v-if="canChangeSource(task)" @click="emit('openChangeSource', task)">Change Source</button>
         <button
           v-if="isTorrentTask(task)"
           @click="$emit('openTorrentDetails', task)"

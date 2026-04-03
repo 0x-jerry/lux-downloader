@@ -23,6 +23,15 @@ export interface TaskActionRequest {
   deleteFile?: boolean
 }
 
+export interface TaskPatchRequest {
+  source?: {
+    kind?: 'auto' | 'url' | 'magnet' | 'torrent' | 'metalink'
+    value: string
+  }
+  concurrency?: number
+  settings?: Record<string, unknown>
+}
+
 const DEFAULT_CONFIG: LuxConfig = {
   baseUrl: 'http://127.0.0.1:8080',
   authToken: 'change-me',
@@ -238,6 +247,24 @@ export async function taskAction(input: TaskActionRequest): Promise<unknown> {
 
   if (!response.ok) {
     throw new Error(`Failed to ${input.action}: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function patchTask(id: string, patch: TaskPatchRequest): Promise<unknown> {
+  const config = await getConfig()
+  const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/tasks/${id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${config.authToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(patch),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to patch task: ${response.status}`)
   }
 
   return response.json()

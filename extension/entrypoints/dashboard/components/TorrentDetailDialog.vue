@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TorrentDetailEntry } from '../types'
 import { formatBytes } from '../utils'
+import BaseDialog from './BaseDialog.vue'
 
 defineProps<{
   open: boolean
@@ -32,112 +33,84 @@ function peerDownloadedPieces(peer: Record<string, unknown>): string {
 </script>
 
 <template>
-  <div v-if="open" class="dialog-backdrop" @click.self="$emit('close')">
-    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="torrent-detail-title">
-      <div class="header">
-        <h3 id="torrent-detail-title">Torrent Details</h3>
+  <BaseDialog
+    :open="open"
+    title="Torrent Details"
+    title-id="torrent-detail-title"
+    size="lg"
+    @close="$emit('close')"
+  >
+    <template #headerActions>
         <button @click="$emit('close')">Close</button>
+    </template>
+    <p class="dialog-text">{{ taskTitle }}</p>
+
+    <template v-if="detail?.loading">
+      <p class="status">Loading torrent details...</p>
+    </template>
+
+    <template v-else-if="detail?.error">
+      <p class="status error">{{ detail.error }}</p>
+      <button @click="$emit('refresh')">Retry</button>
+    </template>
+
+    <template v-else-if="detail?.data">
+      <p>
+        <strong>{{ detail.data.name || 'Unknown torrent' }}</strong>
+        · {{ detail.data.state || '-' }}
+      </p>
+      <p class="meta"><span>Info Hash: <code>{{ detail.data.info_hash || '-' }}</code></span></p>
+      <p class="meta">
+        <span>Peers: {{ detail.data.connected_peer_count ?? 0 }}</span>
+        <span>
+          Progress:
+          {{ formatBytes(detail.data.stats?.progress_bytes ?? 0) }}
+          /
+          {{ detail.data.stats?.total_bytes ? formatBytes(detail.data.stats?.total_bytes ?? 0) : '?' }}
+        </span>
+        <span>Uploaded: {{ formatBytes(detail.data.stats?.uploaded_bytes ?? 0) }}</span>
+      </p>
+      <p v-if="detail.data.output_folder" class="meta">Output: {{ detail.data.output_folder }}</p>
+
+      <div v-if="detail.data.files?.length" class="section">
+        <p class="section-title">Files ({{ detail.data.files.length }})</p>
+        <ul>
+          <li v-for="(file, index) in detail.data.files" :key="`${file.name}-${index}`">
+            {{ file.name }} · {{ formatBytes(file.length) }} ·
+            {{ file.included === false ? 'excluded' : 'included' }}
+          </li>
+        </ul>
       </div>
-      <p class="dialog-text">{{ taskTitle }}</p>
 
-      <template v-if="detail?.loading">
-        <p class="status">Loading torrent details...</p>
-      </template>
-
-      <template v-else-if="detail?.error">
-        <p class="status error">{{ detail.error }}</p>
-        <button @click="$emit('refresh')">Retry</button>
-      </template>
-
-      <template v-else-if="detail?.data">
-        <p>
-          <strong>{{ detail.data.name || 'Unknown torrent' }}</strong>
-          · {{ detail.data.state || '-' }}
-        </p>
-        <p class="meta"><span>Info Hash: <code>{{ detail.data.info_hash || '-' }}</code></span></p>
-        <p class="meta">
-          <span>Peers: {{ detail.data.connected_peer_count ?? 0 }}</span>
-          <span>
-            Progress:
-            {{ formatBytes(detail.data.stats?.progress_bytes ?? 0) }}
-            /
-            {{ detail.data.stats?.total_bytes ? formatBytes(detail.data.stats?.total_bytes ?? 0) : '?' }}
-          </span>
-          <span>Uploaded: {{ formatBytes(detail.data.stats?.uploaded_bytes ?? 0) }}</span>
-        </p>
-        <p v-if="detail.data.output_folder" class="meta">Output: {{ detail.data.output_folder }}</p>
-
-        <div v-if="detail.data.files?.length" class="section">
-          <p class="section-title">Files ({{ detail.data.files.length }})</p>
-          <ul>
-            <li v-for="(file, index) in detail.data.files" :key="`${file.name}-${index}`">
-              {{ file.name }} · {{ formatBytes(file.length) }} ·
-              {{ file.included === false ? 'excluded' : 'included' }}
-            </li>
-          </ul>
+      <div class="section">
+        <p class="section-title">Connected Peers ({{ detail.data.connected_peers?.length || 0 }})</p>
+        <p v-if="!detail.data.connected_peers?.length" class="meta">No connected peers.</p>
+        <div v-else class="peer-table-wrap">
+          <table class="peer-table">
+            <thead>
+              <tr>
+                <th>IP</th>
+                <th>State</th>
+                <th>Connection</th>
+                <th>Download Pieces</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(peer, index) in detail.data.connected_peers" :key="`${peer.address || 'peer'}-${index}`">
+                <td>{{ toDisplay(peer.address) }}</td>
+                <td>{{ toDisplay(peer.state) }}</td>
+                <td>{{ peerConnection(peer as Record<string, unknown>) }}</td>
+                <td>{{ peerDownloadedPieces(peer as Record<string, unknown>) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-
-        <div class="section">
-          <p class="section-title">Connected Peers ({{ detail.data.connected_peers?.length || 0 }})</p>
-          <p v-if="!detail.data.connected_peers?.length" class="meta">No connected peers.</p>
-          <div v-else class="peer-table-wrap">
-            <table class="peer-table">
-              <thead>
-                <tr>
-                  <th>IP</th>
-                  <th>State</th>
-                  <th>Connection</th>
-                  <th>Download Pieces</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(peer, index) in detail.data.connected_peers" :key="`${peer.address || 'peer'}-${index}`">
-                  <td>{{ toDisplay(peer.address) }}</td>
-                  <td>{{ toDisplay(peer.state) }}</td>
-                  <td>{{ peerConnection(peer as Record<string, unknown>) }}</td>
-                  <td>{{ peerDownloadedPieces(peer as Record<string, unknown>) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </template>
-    </section>
-  </div>
+      </div>
+    </template>
+  </BaseDialog>
 </template>
 
 <style scoped>
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgb(15 23 42 / 35%);
-  display: grid;
-  place-items: center;
-  padding: 14px;
-}
-
-.dialog {
-  width: min(860px, 100%);
-  max-height: calc(100vh - 28px);
-  overflow: auto;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  border-radius: 10px;
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-h3 {
-  margin: 0;
-}
-
 .dialog-text {
   margin: 0;
   color: #475569;

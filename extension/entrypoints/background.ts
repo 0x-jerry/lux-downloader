@@ -4,11 +4,13 @@ import {
   getTorrentStats,
   getConfig,
   listTasks,
+  patchTask,
   saveConfig,
   taskAction,
   validateConfig,
   type LinkContext,
   type LuxConfig,
+  type TaskPatchRequest,
   type RuntimeResponse,
   type TaskActionRequest,
 } from '../src/shared'
@@ -87,6 +89,12 @@ async function handleMessage(message: unknown): Promise<RuntimeResponse> {
     case 'task_action': {
       const payload = request.payload as TaskActionRequest
       const task = await taskAction(payload)
+      return { ok: true, data: task }
+    }
+
+    case 'patch_task': {
+      const payload = request.payload as { id: string; patch: TaskPatchRequest }
+      const task = await patchTask(payload.id, payload.patch)
       return { ok: true, data: task }
     }
 
