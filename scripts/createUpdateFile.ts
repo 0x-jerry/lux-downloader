@@ -1,5 +1,3 @@
-import { writeFile } from 'node:fs/promises'
-
 // https://developer.chrome.com/apps/autoupdate#update_manifest
 
 const WEBEXT_APPID = 'infckgbjgkalgpmgfpglleiaodcklcag'
@@ -14,5 +12,5 @@ export async function createUpdateYamlFile(opt: { version: string }) {
 </gupdate>
     `.trim()
 
-  await writeFile('extension/updates.xml', updateContent)
+  return updateContent
 }
