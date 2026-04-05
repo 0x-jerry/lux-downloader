@@ -32,4 +32,4 @@ jobs:
         with:
           body_path: GEN_CHANGELOG.md
           files: |
-            lux-extension.crx
+            ./extension/*.crx
