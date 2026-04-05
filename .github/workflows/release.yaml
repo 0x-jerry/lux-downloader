@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    working-directory: ./extension
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: 'pnpm'
+
+      - run: pnpm i
+
+      - name: Generate Release Note
+        run: npx changelogithub --output GEN_CHANGELOG.md
+
+      - name: Generate Chrome Extension
+        run: npm run build:prepare && npm run build && npm run pack:crx
+        env:
+          WEBEXT_PRIVATE_KEY: ${{ secrets.WEBEXT_PRIVATE_KEY }}
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: GEN_CHANGELOG.md
+          files: |
+            webext-universal.crx
