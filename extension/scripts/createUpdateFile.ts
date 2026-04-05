@@ -14,5 +14,5 @@ export async function createUpdateYamlFile(opt: { version: string }) {
 </gupdate>
     `.trim()
 
-  await writeFile('updates.xml', updateContent)
+  await writeFile('extension/updates.xml', updateContent)
 }
