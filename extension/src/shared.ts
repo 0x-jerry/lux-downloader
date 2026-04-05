@@ -233,8 +233,7 @@ export async function listTasks(): Promise<unknown> {
 
 export async function taskAction(input: TaskActionRequest): Promise<unknown> {
   const config = await getConfig()
-  const query =
-    input.action === 'remove' && input.deleteFile ? '?delete_file=true' : ''
+  const query = input.action === 'remove' && input.deleteFile ? '?delete_file=true' : ''
   const response = await fetch(
     `${normalizeBaseUrl(config.baseUrl)}/tasks/${input.id}/${input.action}${query}`,
     {

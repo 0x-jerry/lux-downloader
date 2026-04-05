@@ -6,9 +6,7 @@ type TorrentDetailsModuleParams = {
   state: DashboardState
 }
 
-export function useTorrentDetails({
-  state,
-}: TorrentDetailsModuleParams) {
+export function useTorrentDetails({ state }: TorrentDetailsModuleParams) {
   function ensureTorrentDetailEntry(taskId: string): TorrentDetailEntry {
     if (!state.torrentDetails[taskId]) {
       state.torrentDetails[taskId] = {

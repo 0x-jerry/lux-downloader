@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
+    "build:prepare": "bun run scripts/prepare.ts",
     "zip": "wxt zip",
     "postinstall": "wxt prepare",
     "check": "vue-tsc --noEmit",
+    "pack:crx": "crx3 .output/chrome-mv3 -p ./key.pem -o lux-extension.crx",
     "fmt": "oxfmt src entrypoints *.ts"
   },
   "dependencies": {
@@ -17,8 +19,7 @@
   },
   "devDependencies": {
     "@wxt-dev/module-vue": "^1.0.3",
-    "oxfmt": "^0.43.0",
-    "typescript": "^6.0.2",
+    "crx3": "^2.0.0",
     "wxt": "^0.20.20"
   }
 }

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "name": "lux-downloader",
+  "type": "module",
+  "scripts": {
+    "release": "x-release"
+  },
+  "workspaces": [
+    "extension"
+  ],
+  "devDependencies": {
+    "@0x-jerry/x-release": "^3.0.1",
+    "@types/bun": "latest",
+    "oxfmt": "^0.43.0",
+    "typescript": "^6.0.2"
+  }
+}
