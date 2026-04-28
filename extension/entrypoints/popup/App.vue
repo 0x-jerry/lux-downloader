@@ -63,24 +63,35 @@ async function submit() {
 
 <template>
   <main class="popup">
-    <h1>Lux Downloader</h1>
-    <form @submit.prevent="submit">
-      <input v-model="url" type="url" placeholder="https://example.com/file.zip" />
-      <button :disabled="loading" type="submit">Add Task</button>
-    </form>
+    <t-space direction="vertical" size="12px" style="width: 100%">
+      <h1>Lux Downloader</h1>
 
-    <p class="status">{{ status }}</p>
+      <form class="form" @submit.prevent="submit">
+        <t-input
+          v-model="url"
+          type="url"
+          clearable
+          placeholder="https://example.com/file.zip"
+        />
+        <t-button :loading="loading" theme="primary" type="submit" block>
+          Add Task
+        </t-button>
+      </form>
 
-    <section v-if="latest" class="latest">
-      <h2>Latest Task</h2>
-      <p class="mono">{{ latest.id }}</p>
-      <p>
-        <strong>{{ latest.state }}</strong>
-      </p>
-      <p class="clip">{{ latest.spec?.source?.value }}</p>
-    </section>
+      <p class="status">{{ status }}</p>
 
-    <a :href="dashboardUrl" target="_blank" rel="noreferrer">Open Dashboard & Settings</a>
+      <t-card v-if="latest" title="Latest Task" bordered>
+        <t-space direction="vertical" size="4px" style="width: 100%">
+          <p class="mono">{{ latest.id }}</p>
+          <t-tag variant="light-outline">{{ latest.state }}</t-tag>
+          <p class="clip">{{ latest.spec?.source?.value }}</p>
+        </t-space>
+      </t-card>
+
+      <t-link :href="dashboardUrl" target="_blank" theme="primary" hover="underline">
+        Open Dashboard & Settings
+      </t-link>
+    </t-space>
   </main>
 </template>
 
@@ -89,80 +100,37 @@ async function submit() {
   width: 320px;
   min-height: 280px;
   padding: 14px;
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    sans-serif;
   color: #0f172a;
 }
 
 h1 {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 18px;
 }
 
-h2 {
-  margin: 0 0 8px;
-  font-size: 13px;
-}
-
-form {
+.form {
   display: grid;
   gap: 8px;
 }
 
-input {
-  width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px;
-}
-
-button {
-  border: none;
-  border-radius: 8px;
-  background: #0ea5e9;
-  color: white;
-  font-weight: 600;
-  padding: 8px;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
 .status {
-  margin: 10px 0;
+  margin: 0;
   min-height: 20px;
   font-size: 12px;
   color: #334155;
 }
 
-.latest {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px;
-  margin-bottom: 10px;
-}
-
 .mono {
+  margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
 }
 
 .clip {
+  margin: 0;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-a {
-  color: #0369a1;
-  text-decoration: none;
-  font-size: 12px;
 }
 </style>

@@ -35,6 +35,17 @@ const serverStatusLabel = computed(() => {
   }
 })
 
+const serverStatusTheme = computed(() => {
+  switch (dashboard.state.serverConnection) {
+    case 'connected':
+      return 'success'
+    case 'disconnected':
+      return 'danger'
+    default:
+      return 'warning'
+  }
+})
+
 onMounted(async () => {
   await dashboard.init()
 })
@@ -74,12 +85,14 @@ async function confirmChangeSourceDialog() {
 
 <template>
   <main class="dashboard">
-    <header>
+    <header class="header">
       <div class="header-title">
         <h1>Lux Dashboard</h1>
-        <span class="badge" :class="dashboard.state.serverConnection">{{ serverStatusLabel }}</span>
+        <t-tag variant="light-outline" :theme="serverStatusTheme">
+          {{ serverStatusLabel }}
+        </t-tag>
       </div>
-      <button @click="refreshAll">Refresh Tasks</button>
+      <t-button variant="outline" @click="refreshAll">Refresh Tasks</t-button>
     </header>
 
     <div class="layout">
@@ -90,8 +103,7 @@ async function confirmChangeSourceDialog() {
         @save="dashboard.saveConfig"
       />
 
-      <section class="card tasks">
-        <h2>Tasks</h2>
+      <t-card title="Tasks" bordered>
         <TaskCreateForm
           :new-task-url="dashboard.state.newTaskUrl"
           :new-task-referer="dashboard.state.newTaskReferer"
@@ -108,7 +120,7 @@ async function confirmChangeSourceDialog() {
           @open-change-source="openChangeSourceDialog"
           @open-torrent-details="dashboard.openTorrentDetails"
         />
-      </section>
+      </t-card>
     </div>
 
     <ChangeSourceDialog
@@ -139,24 +151,19 @@ async function confirmChangeSourceDialog() {
   </main>
 </template>
 
-<style>
+<style scoped>
 .dashboard {
-  max-width: 980px;
   margin: 18px auto;
   padding: 14px;
   color: #0f172a;
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    sans-serif;
 }
 
-header {
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  gap: 12px;
 }
 
 .header-title {
@@ -169,61 +176,14 @@ h1 {
   margin: 0;
 }
 
-h2 {
-  margin: 0 0 8px;
-}
-
-button {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
-  padding: 8px 10px;
-  cursor: pointer;
-}
-
-.badge {
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  line-height: 1.2;
-  border: 1px solid #cbd5e1;
-  background: #f1f5f9;
-  color: #334155;
-}
-
-.badge.connected {
-  border-color: #86efac;
-  background: #dcfce7;
-  color: #166534;
-}
-
-.badge.disconnected {
-  border-color: #fca5a5;
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.badge.checking {
-  border-color: #fcd34d;
-  background: #fef3c7;
-  color: #92400e;
-}
-
 .layout {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 350px 1fr;
   gap: 14px;
 }
 
-.card {
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  border-radius: 10px;
-  padding: 12px;
-}
-
 .status {
-  margin: 0;
+  margin: 0 0 10px;
   color: #334155;
   min-height: 20px;
 }
@@ -231,6 +191,11 @@ button {
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

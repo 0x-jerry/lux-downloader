@@ -15,25 +15,23 @@ defineEmits<{
 </script>
 
 <template>
-  <BaseDialog
-    :open="open"
-    title="Change task source"
-    title-id="change-source-title"
-    @close="$emit('cancel')"
-  >
+  <BaseDialog :open="open" title="Change task source" @close="$emit('cancel')">
     <p class="dialog-text">{{ taskTitle }}</p>
-    <label class="field">
-      <span>Source</span>
-      <input
-        :value="value"
-        type="text"
-        placeholder="https://... or magnet:?... or .torrent URL"
-        @input="$emit('update:value', ($event.target as HTMLInputElement).value)"
-      />
-    </label>
+    <t-form layout="vertical">
+      <t-form-item label="Source">
+        <t-input
+          :value="value"
+          type="text"
+          clearable
+          placeholder="https://... or magnet:?... or .torrent URL"
+          @update:value="$emit('update:value', String($event ?? ''))"
+        />
+      </t-form-item>
+    </t-form>
+
     <template #actions>
-      <button @click="$emit('cancel')">Cancel</button>
-      <button @click="$emit('confirm')">Save</button>
+      <t-button variant="outline" @click="$emit('cancel')">Cancel</t-button>
+      <t-button theme="primary" @click="$emit('confirm')">Save</t-button>
     </template>
   </BaseDialog>
 </template>
@@ -44,22 +42,5 @@ defineEmits<{
   color: #475569;
   font-size: 13px;
   word-break: break-all;
-}
-
-.field {
-  display: grid;
-  gap: 6px;
-}
-
-.field span {
-  font-size: 12px;
-  color: #334155;
-}
-
-.field input {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 14px;
 }
 </style>

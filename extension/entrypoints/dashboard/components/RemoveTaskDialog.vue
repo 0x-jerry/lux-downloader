@@ -15,24 +15,17 @@ defineEmits<{
 </script>
 
 <template>
-  <BaseDialog
-    :open="open"
-    title="Remove task?"
-    title-id="remove-task-title"
-    @close="$emit('cancel')"
-  >
+  <BaseDialog :open="open" title="Remove task?" @close="$emit('cancel')">
     <p class="dialog-text">{{ taskTitle }}</p>
-    <label class="checkbox">
-      <input
-        :checked="removeDeleteFile"
-        type="checkbox"
-        @change="$emit('update:removeDeleteFile', ($event.target as HTMLInputElement).checked)"
-      />
+    <t-checkbox
+      :checked="removeDeleteFile"
+      @change="$emit('update:removeDeleteFile', $event)"
+    >
       Delete downloaded file from disk
-    </label>
+    </t-checkbox>
     <template #actions>
-        <button @click="$emit('cancel')">Cancel</button>
-        <button class="danger" @click="$emit('confirm')">Remove</button>
+      <t-button variant="outline" @click="$emit('cancel')">Cancel</t-button>
+      <t-button theme="danger" @click="$emit('confirm')">Remove</t-button>
     </template>
   </BaseDialog>
 </template>
@@ -43,17 +36,5 @@ defineEmits<{
   color: #475569;
   font-size: 13px;
   word-break: break-all;
-}
-
-.checkbox {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 8px;
-}
-
-.danger {
-  border-color: #fca5a5;
-  color: #b91c1c;
 }
 </style>

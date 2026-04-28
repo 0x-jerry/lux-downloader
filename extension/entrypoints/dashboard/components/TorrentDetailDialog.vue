@@ -33,31 +33,22 @@ function peerDownloadedPieces(peer: Record<string, unknown>): string {
 </script>
 
 <template>
-  <BaseDialog
-    :open="open"
-    title="Torrent Details"
-    title-id="torrent-detail-title"
-    size="lg"
-    @close="$emit('close')"
-  >
-    <template #headerActions>
-        <button @click="$emit('close')">Close</button>
-    </template>
+  <BaseDialog :open="open" title="Torrent Details" size="lg" @close="$emit('close')">
     <p class="dialog-text">{{ taskTitle }}</p>
 
     <template v-if="detail?.loading">
-      <p class="status">Loading torrent details...</p>
+      <t-loading :loading="true" text="Loading torrent details..." />
     </template>
 
     <template v-else-if="detail?.error">
       <p class="status error">{{ detail.error }}</p>
-      <button @click="$emit('refresh')">Retry</button>
+      <t-button variant="outline" @click="$emit('refresh')">Retry</t-button>
     </template>
 
     <template v-else-if="detail?.data">
-      <p>
+      <p class="title-line">
         <strong>{{ detail.data.name || 'Unknown torrent' }}</strong>
-        · {{ detail.data.state || '-' }}
+        <t-tag variant="light-outline">{{ detail.data.state || '-' }}</t-tag>
       </p>
       <p class="meta"><span>Info Hash: <code>{{ detail.data.info_hash || '-' }}</code></span></p>
       <p class="meta">
@@ -107,6 +98,11 @@ function peerDownloadedPieces(peer: Record<string, unknown>): string {
         </div>
       </div>
     </template>
+
+    <template #actions>
+      <t-button variant="outline" @click="$emit('close')">Close</t-button>
+      <t-button v-if="detail?.error || detail?.data" variant="outline" @click="$emit('refresh')">Refresh</t-button>
+    </template>
   </BaseDialog>
 </template>
 
@@ -116,6 +112,14 @@ function peerDownloadedPieces(peer: Record<string, unknown>): string {
   color: #475569;
   font-size: 13px;
   word-break: break-all;
+}
+
+.title-line {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .status {

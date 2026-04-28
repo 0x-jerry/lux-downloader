@@ -15,54 +15,40 @@ defineEmits<{
 
 <template>
   <form class="add-task-form" @submit.prevent="$emit('submit')">
-    <label>
-      URL
-      <input
-        :value="newTaskUrl"
-        type="text"
-        placeholder="https://example.com/file.zip or magnet:..."
-        @input="$emit('update:newTaskUrl', ($event.target as HTMLInputElement).value)"
-      />
-    </label>
-    <label>
-      Referer (optional)
-      <input
-        :value="newTaskReferer"
-        type="url"
-        placeholder="https://origin-page.example/"
-        @input="$emit('update:newTaskReferer', ($event.target as HTMLInputElement).value)"
-      />
-    </label>
-    <div class="row">
-      <button :disabled="creatingTask" type="submit">Add Task</button>
-      <p class="status">{{ createTaskStatus }}</p>
-    </div>
+    <t-form layout="vertical">
+      <t-form-item label="URL">
+        <t-input
+          :value="newTaskUrl"
+          type="text"
+          clearable
+          placeholder="https://example.com/file.zip or magnet:..."
+          @update:value="$emit('update:newTaskUrl', String($event ?? ''))"
+        />
+      </t-form-item>
+
+      <t-form-item label="Referer">
+        <t-input
+          :value="newTaskReferer"
+          type="url"
+          clearable
+          placeholder="https://origin-page.example/"
+          @update:value="$emit('update:newTaskReferer', String($event ?? ''))"
+        />
+      </t-form-item>
+
+      <t-space direction="vertical" size="8px" style="width: 100%">
+        <t-button :loading="creatingTask" type="submit" theme="primary" block>
+          Add Task
+        </t-button>
+        <p class="status">{{ createTaskStatus }}</p>
+      </t-space>
+    </t-form>
   </form>
 </template>
 
 <style scoped>
 .add-task-form {
-  display: grid;
-  gap: 10px;
   margin-bottom: 10px;
-}
-
-label {
-  display: grid;
-  gap: 6px;
-  font-size: 14px;
-}
-
-input[type='url'],
-input[type='text'] {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 10px;
-}
-
-.row {
-  display: grid;
-  gap: 8px;
 }
 
 .status {
