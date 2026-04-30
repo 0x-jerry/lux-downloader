@@ -13,7 +13,7 @@ export default defineConfig({
     update_url:
       'https://raw.githubusercontent.com/0x-jerry/lux-downloader/main/extension/updates.xml',
     description: 'Intercept download links and send them to Lux.',
-    permissions: ['storage', 'contextMenus', 'cookies'],
+    permissions: ['storage', 'contextMenus', 'cookies', 'downloads', "alarms"],
     host_permissions: ['<all_urls>'],
     action: {
       default_title: 'Lux Downloader',

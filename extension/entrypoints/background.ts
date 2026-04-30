@@ -3,6 +3,7 @@ import {
   createTaskFromLink,
   getTorrentStats,
   getConfig,
+  isLikelyDownloadLink,
   listTasks,
   patchTask,
   saveConfig,
@@ -14,8 +15,10 @@ import {
   type RuntimeResponse,
   type TaskActionRequest,
 } from '../src/shared'
+import type { Task } from '../entrypoints/dashboard/types'
 
 const MENU_ID = 'lux-send-link'
+const BADGE_ALARM = 'update-badge'
 
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
@@ -36,9 +39,67 @@ export default defineBackground(() => {
         url: info.linkUrl,
         referer: info.pageUrl,
       })
+      updateBadge()
     } catch (error) {
       console.error('Failed to create Lux task from context menu:', error)
     }
+  })
+
+  async function updateBadge() {
+    const tasks = ((await listTasks()) as any).items as Task[]
+
+    const count = tasks.filter((t) => t.state === 'downloading').length
+
+    if (count > 0) {
+      await browser.action.setBadgeText({ text: String(count) })
+      await browser.action.setBadgeBackgroundColor({ color: '#1a73e8' })
+    } else {
+      await browser.action.setBadgeText({ text: '' })
+    }
+  }
+
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === BADGE_ALARM) {
+      updateBadge()
+    }
+  })
+
+  browser.alarms.create(BADGE_ALARM, { periodInMinutes: 1 / 12 })
+
+  updateBadge()
+
+  browser.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
+    const { url, referrer } = downloadItem
+
+    if (!url || url.startsWith('blob:') || url.startsWith('data:')) {
+      suggest()
+      return
+    }
+
+    ;(async () => {
+      const config = await getConfig()
+      if (!config.interceptEnabled || !isLikelyDownloadLink(url, false)) {
+        suggest()
+        return
+      }
+
+      try {
+        const task = await createTaskFromLink({
+          url,
+          referer: referrer ?? undefined,
+        })
+
+        await updateBadge()
+        await browser.downloads.cancel(downloadItem.id)
+        console.log('Download intercepted and sent to Lux:', task.id)
+      } catch (error) {
+        console.error('Failed to intercept download:', error)
+      }
+
+      suggest()
+    })()
+
+    return true
   })
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
