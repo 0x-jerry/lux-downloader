@@ -14,36 +14,32 @@ defineEmits<{
 </script>
 
 <template>
-  <form class="add-task-form" @submit.prevent="$emit('submit')">
-    <t-form layout="vertical">
-      <t-form-item label="URL">
-        <t-input
-          :value="newTaskUrl"
-          type="text"
-          clearable
-          placeholder="https://example.com/file.zip or magnet:..."
-          @update:value="$emit('update:newTaskUrl', String($event ?? ''))"
-        />
-      </t-form-item>
+  <t-form class="add-task-form" layout="vertical" @submit="$emit('submit')">
+    <t-form-item label="URL">
+      <t-input
+        :value="newTaskUrl"
+        type="text"
+        clearable
+        placeholder="https://example.com/file.zip or magnet:..."
+        @update:value="$emit('update:newTaskUrl', String($event ?? ''))"
+      />
+    </t-form-item>
 
-      <t-form-item label="Referer">
-        <t-input
-          :value="newTaskReferer"
-          type="url"
-          clearable
-          placeholder="https://origin-page.example/"
-          @update:value="$emit('update:newTaskReferer', String($event ?? ''))"
-        />
-      </t-form-item>
+    <t-form-item label="Referer">
+      <t-input
+        :value="newTaskReferer"
+        type="url"
+        clearable
+        placeholder="https://origin-page.example/"
+        @update:value="$emit('update:newTaskReferer', String($event ?? ''))"
+      />
+    </t-form-item>
 
-      <t-space direction="vertical" size="8px" style="width: 100%">
-        <t-button :loading="creatingTask" type="submit" theme="primary" block>
-          Add Task
-        </t-button>
-        <p class="status">{{ createTaskStatus }}</p>
-      </t-space>
-    </t-form>
-  </form>
+    <t-space direction="vertical" size="8px" style="width: 100%">
+      <t-button :loading="creatingTask" type="submit" theme="primary" block> Add Task </t-button>
+      <p class="status">{{ createTaskStatus }}</p>
+    </t-space>
+  </t-form>
 </template>
 
 <style scoped>

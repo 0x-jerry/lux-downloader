@@ -1,5 +1,6 @@
 import type { Task } from '../../types'
 import type { DashboardState } from '../dashboardState'
+import { filenameFromUrl } from '../../../../shared'
 
 type TaskCommand = 'pause' | 'resume' | 'restart' | 'remove'
 
@@ -54,7 +55,15 @@ export function useTaskManagement({
       })
 
       if (!response?.ok) {
-        state.createTaskStatus = response?.error ?? 'Failed to create task'
+        state.retryDialogUrl = state.newTaskUrl.trim()
+        state.retryDialogReferer = state.newTaskReferer.trim()
+        state.retryDialogFilename = filenameFromUrl(state.newTaskUrl.trim())
+        state.retryDialogError = response?.error ?? 'Failed to create task'
+        state.retryDialogOverwrite = false
+        state.retryDialogOpen = true
+        state.newTaskUrl = ''
+        state.newTaskReferer = ''
+        state.createTaskStatus = ''
         return
       }
 
@@ -62,9 +71,46 @@ export function useTaskManagement({
       state.newTaskUrl = ''
       state.newTaskReferer = ''
       await loadTasks()
+    } catch (err) {
+      console.error(err)
     } finally {
       state.creatingTask = false
     }
+  }
+
+  async function retryCreateTask() {
+    state.retryDialogOpen = false
+    state.creatingTask = true
+    state.createTaskStatus = 'Retrying...'
+
+    try {
+      const response = await browser.runtime.sendMessage({
+        action: 'manual_add_task',
+        payload: {
+          url: state.retryDialogUrl,
+          referer: state.retryDialogReferer,
+          destinationPath: state.retryDialogFilename,
+          overwrite: state.retryDialogOverwrite,
+        },
+      })
+
+      if (!response?.ok) {
+        state.retryDialogError = response?.error ?? 'Failed to create task'
+        state.retryDialogOpen = true
+        state.createTaskStatus = ''
+        return
+      }
+
+      state.createTaskStatus = `Task created: ${response.data.id}`
+      await loadTasks()
+    } finally {
+      state.creatingTask = false
+    }
+  }
+
+  function cancelRetryDialog() {
+    state.retryDialogOpen = false
+    state.createTaskStatus = ''
   }
 
   async function action(id: string, command: TaskCommand) {
@@ -153,6 +199,8 @@ export function useTaskManagement({
   return {
     loadTasks,
     createTask,
+    retryCreateTask,
+    cancelRetryDialog,
     action,
     updateTaskSource,
     cancelRemoveDialog,

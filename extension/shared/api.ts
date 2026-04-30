@@ -1,140 +1,6 @@
-export interface LuxConfig {
-  baseUrl: string
-  authToken: string
-  interceptEnabled: boolean
-  includeCookies: boolean
-  includeReferer: boolean
-}
-
-export interface LinkContext {
-  url: string
-  referer?: string
-}
-
-export interface RuntimeResponse<T = unknown> {
-  ok: boolean
-  data?: T
-  error?: string
-}
-
-export interface TaskActionRequest {
-  id: string
-  action: 'pause' | 'resume' | 'restart' | 'remove'
-  deleteFile?: boolean
-}
-
-export interface TaskPatchRequest {
-  source?: {
-    kind?: 'auto' | 'url' | 'magnet' | 'torrent' | 'metalink'
-    value: string
-  }
-  concurrency?: number
-  settings?: Record<string, unknown>
-}
-
-const DEFAULT_CONFIG: LuxConfig = {
-  baseUrl: 'http://127.0.0.1:8080',
-  authToken: 'change-me',
-  interceptEnabled: true,
-  includeCookies: true,
-  includeReferer: true,
-}
-
-export function normalizeBaseUrl(baseUrl: string): string {
-  return baseUrl.trim().replace(/\/+$/, '')
-}
-
-export function filenameFromUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl)
-    const parts = url.pathname.split('/').filter(Boolean)
-    const candidate = decodeURIComponent(parts[parts.length - 1] || '').trim()
-    if (candidate) {
-      return sanitizeFilename(candidate)
-    }
-  } catch {
-    // ignore parse errors
-  }
-
-  return `download-${Date.now()}`
-}
-
-function sanitizeFilename(name: string): string {
-  return (
-    name
-      .replace(/[\\/:*?"<>|]/g, '_')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 180) || `download-${Date.now()}`
-  )
-}
-
-export async function getConfig(): Promise<LuxConfig> {
-  const stored = await browser.storage.sync.get(Object.keys(DEFAULT_CONFIG))
-  return {
-    baseUrl: normalizeBaseUrl(String(stored.baseUrl ?? DEFAULT_CONFIG.baseUrl)),
-    authToken: String(stored.authToken ?? DEFAULT_CONFIG.authToken),
-    interceptEnabled: Boolean(stored.interceptEnabled ?? DEFAULT_CONFIG.interceptEnabled),
-    includeCookies: Boolean(stored.includeCookies ?? DEFAULT_CONFIG.includeCookies),
-    includeReferer: Boolean(stored.includeReferer ?? DEFAULT_CONFIG.includeReferer),
-  }
-}
-
-export async function saveConfig(input: Partial<LuxConfig>): Promise<LuxConfig> {
-  const current = await getConfig()
-  const next: LuxConfig = {
-    ...current,
-    ...input,
-    baseUrl: normalizeBaseUrl(input.baseUrl ?? current.baseUrl),
-  }
-
-  await browser.storage.sync.set(next)
-  return next
-}
-
-export function isLikelyDownloadLink(rawHref: string, hasDownloadAttribute: boolean): boolean {
-  if (hasDownloadAttribute) {
-    return true
-  }
-
-  const href = rawHref.toLowerCase()
-
-  if (href.startsWith('magnet:?')) {
-    return true
-  }
-
-  const knownSuffixes = [
-    '.zip',
-    '.7z',
-    '.rar',
-    '.tar',
-    '.gz',
-    '.bz2',
-    '.xz',
-    '.iso',
-    '.dmg',
-    '.pkg',
-    '.exe',
-    '.msi',
-    '.deb',
-    '.rpm',
-    '.apk',
-    '.mp4',
-    '.mkv',
-    '.avi',
-    '.mp3',
-    '.flac',
-    '.wav',
-    '.pdf',
-    '.epub',
-    '.torrent',
-    '.metalink',
-    '.meta4',
-  ]
-
-  const stripped = href.split('#')[0].split('?')[0]
-  return knownSuffixes.some((suffix) => stripped.endsWith(suffix))
-}
+import type { LinkContext, LuxConfig, Task, TaskActionRequest, TaskPatchRequest, ListTasksResponse, TorrentStats } from './types'
+import { getConfig, normalizeBaseUrl } from './config'
+import { filenameFromUrl } from './utils'
 
 export async function validateConfig(config: LuxConfig): Promise<void> {
   const baseUrl = normalizeBaseUrl(config.baseUrl)
@@ -181,15 +47,16 @@ export async function createTaskFromLink(context: LinkContext): Promise<{ id: st
 
   const payload = {
     source: {
-      kind: 'auto',
+      kind: 'auto' as const,
       value: context.url,
     },
-    destination_path: filenameFromUrl(context.url),
+    destination_path: context.destinationPath ?? filenameFromUrl(context.url),
     settings: {
       headers,
       cookies,
     },
     auto_start: true,
+    ...(context.overwrite ? { overwrite: true } : {}),
   }
 
   const response = await fetch(`${baseUrl}/tasks`, {
@@ -216,7 +83,7 @@ export async function createTaskFromLink(context: LinkContext): Promise<{ id: st
   return task
 }
 
-export async function listTasks(): Promise<unknown> {
+export async function listTasks(): Promise<ListTasksResponse> {
   const config = await getConfig()
   const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/tasks`, {
     headers: {
@@ -231,7 +98,7 @@ export async function listTasks(): Promise<unknown> {
   return response.json()
 }
 
-export async function taskAction(input: TaskActionRequest): Promise<unknown> {
+export async function taskAction(input: TaskActionRequest): Promise<Task> {
   const config = await getConfig()
   const query = input.action === 'remove' && input.deleteFile ? '?delete_file=true' : ''
   const response = await fetch(
@@ -251,7 +118,7 @@ export async function taskAction(input: TaskActionRequest): Promise<unknown> {
   return response.json()
 }
 
-export async function patchTask(id: string, patch: TaskPatchRequest): Promise<unknown> {
+export async function patchTask(id: string, patch: TaskPatchRequest): Promise<Task> {
   const config = await getConfig()
   const response = await fetch(`${normalizeBaseUrl(config.baseUrl)}/tasks/${id}`, {
     method: 'PATCH',
@@ -269,7 +136,7 @@ export async function patchTask(id: string, patch: TaskPatchRequest): Promise<un
   return response.json()
 }
 
-export async function getTorrentStats(taskId: string): Promise<unknown> {
+export async function getTorrentStats(taskId: string): Promise<TorrentStats> {
   const config = await getConfig()
   const response = await fetch(
     `${normalizeBaseUrl(config.baseUrl)}/tasks/${taskId}/torrent-stats`,

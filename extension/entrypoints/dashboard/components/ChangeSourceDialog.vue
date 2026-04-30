@@ -15,7 +15,7 @@ defineEmits<{
 </script>
 
 <template>
-  <BaseDialog :open="open" title="Change task source" @close="$emit('cancel')">
+  <BaseDialog :open="open" title="Change task source" @close="$emit('cancel')" size="lg">
     <p class="dialog-text">{{ taskTitle }}</p>
     <t-form layout="vertical">
       <t-form-item label="Source">

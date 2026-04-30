@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { Task } from './types'
 import ChangeSourceDialog from './components/ChangeSourceDialog.vue'
+import CreateTaskRetryDialog from './components/CreateTaskRetryDialog.vue'
 import RemoveTaskDialog from './components/RemoveTaskDialog.vue'
 import SettingsCard from './components/SettingsCard.vue'
 import TorrentDetailDialog from './components/TorrentDetailDialog.vue'
@@ -147,6 +148,18 @@ async function confirmChangeSourceDialog() {
       @cancel="dashboard.cancelRemoveDialog"
       @confirm="dashboard.confirmRemoveDialog"
       @update:remove-delete-file="dashboard.state.removeDeleteFile = $event"
+    />
+
+    <CreateTaskRetryDialog
+      :open="dashboard.state.retryDialogOpen"
+      :error="dashboard.state.retryDialogError"
+      :url="dashboard.state.retryDialogUrl"
+      :filename="dashboard.state.retryDialogFilename"
+      :overwrite="dashboard.state.retryDialogOverwrite"
+      @cancel="dashboard.cancelRetryDialog"
+      @retry="dashboard.retryCreateTask"
+      @update:filename="dashboard.state.retryDialogFilename = $event"
+      @update:overwrite="dashboard.state.retryDialogOverwrite = $event"
     />
   </main>
 </template>

@@ -14,8 +14,20 @@ import {
   type TaskPatchRequest,
   type RuntimeResponse,
   type TaskActionRequest,
-} from '../src/shared'
-import type { Task } from '../entrypoints/dashboard/types'
+  type Task,
+} from '../shared'
+
+type MessagePayload =
+  | { action: 'intercept_add_task'; payload: LinkContext }
+  | { action: 'manual_add_task'; payload: LinkContext }
+  | { action: 'list_tasks' }
+  | { action: 'task_action'; payload: TaskActionRequest }
+  | { action: 'patch_task'; payload: { id: string; patch: TaskPatchRequest } }
+  | { action: 'torrent_stats'; payload: { id: string } }
+  | { action: 'server_health' }
+  | { action: 'get_config' }
+  | { action: 'save_config'; payload: Partial<LuxConfig> }
+  | { action: 'validate_config'; payload: LuxConfig }
 
 const MENU_ID = 'lux-send-link'
 const BADGE_ALARM = 'update-badge'
@@ -46,7 +58,7 @@ export default defineBackground(() => {
   })
 
   async function updateBadge() {
-    const tasks = ((await listTasks()) as any).items as Task[]
+    const tasks = (await listTasks()).items
 
     const count = tasks.filter((t) => t.state === 'downloading').length
 
@@ -117,12 +129,16 @@ export default defineBackground(() => {
   })
 })
 
+function isValidMessage(msg: unknown): msg is MessagePayload {
+  return msg !== null && typeof msg === 'object' && 'action' in msg
+}
+
 async function handleMessage(message: unknown): Promise<RuntimeResponse> {
-  if (!message || typeof message !== 'object') {
+  if (!isValidMessage(message)) {
     return { ok: false, error: 'Invalid message payload' }
   }
 
-  const request = message as Record<string, unknown>
+  const request = message
 
   switch (request.action) {
     case 'intercept_add_task': {
@@ -131,14 +147,12 @@ async function handleMessage(message: unknown): Promise<RuntimeResponse> {
         return { ok: false, error: 'Interception is disabled in options' }
       }
 
-      const context = request.payload as LinkContext
-      const task = await createTaskFromLink(context)
+      const task = await createTaskFromLink(request.payload)
       return { ok: true, data: task }
     }
 
     case 'manual_add_task': {
-      const context = request.payload as LinkContext
-      const task = await createTaskFromLink(context)
+      const task = await createTaskFromLink(request.payload)
       return { ok: true, data: task }
     }
 
@@ -148,20 +162,17 @@ async function handleMessage(message: unknown): Promise<RuntimeResponse> {
     }
 
     case 'task_action': {
-      const payload = request.payload as TaskActionRequest
-      const task = await taskAction(payload)
+      const task = await taskAction(request.payload)
       return { ok: true, data: task }
     }
 
     case 'patch_task': {
-      const payload = request.payload as { id: string; patch: TaskPatchRequest }
-      const task = await patchTask(payload.id, payload.patch)
+      const task = await patchTask(request.payload.id, request.payload.patch)
       return { ok: true, data: task }
     }
 
     case 'torrent_stats': {
-      const payload = request.payload as { id: string }
-      const stats = await getTorrentStats(payload.id)
+      const stats = await getTorrentStats(request.payload.id)
       return { ok: true, data: stats }
     }
 
@@ -176,18 +187,13 @@ async function handleMessage(message: unknown): Promise<RuntimeResponse> {
     }
 
     case 'save_config': {
-      const payload = request.payload as Partial<LuxConfig>
-      const config = await saveConfig(payload)
+      const config = await saveConfig(request.payload)
       return { ok: true, data: config }
     }
 
     case 'validate_config': {
-      const payload = request.payload as LuxConfig
-      await validateConfig(payload)
+      await validateConfig(request.payload)
       return { ok: true }
     }
-
-    default:
-      return { ok: false, error: `Unknown action: ${String(request.action)}` }
   }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TorrentDetailEntry } from '../types'
+import type { TorrentDetailEntry, ConnectedPeer } from '../types'
 import { formatBytes } from '../utils'
 import BaseDialog from './BaseDialog.vue'
 
@@ -14,20 +14,20 @@ defineEmits<{
   refresh: []
 }>()
 
-function toDisplay(value: unknown): string {
+function toDisplay(value: string | number | undefined | null): string {
   if (value === null || value === undefined) {
     return '-'
   }
   return String(value)
 }
 
-function peerConnection(peer: Record<string, unknown>): string {
-  const counters = (peer.counters ?? {}) as Record<string, unknown>
+function peerConnection(peer: ConnectedPeer): string {
+  const counters = peer.counters ?? {}
   return toDisplay(counters.connections ?? counters.connection_attempts)
 }
 
-function peerDownloadedPieces(peer: Record<string, unknown>): string {
-  const counters = (peer.counters ?? {}) as Record<string, unknown>
+function peerDownloadedPieces(peer: ConnectedPeer): string {
+  const counters = peer.counters ?? {}
   return toDisplay(counters.downloaded_and_checked_pieces ?? counters.fetched_chunks)
 }
 </script>
@@ -90,8 +90,8 @@ function peerDownloadedPieces(peer: Record<string, unknown>): string {
               <tr v-for="(peer, index) in detail.data.connected_peers" :key="`${peer.address || 'peer'}-${index}`">
                 <td>{{ toDisplay(peer.address) }}</td>
                 <td>{{ toDisplay(peer.state) }}</td>
-                <td>{{ peerConnection(peer as Record<string, unknown>) }}</td>
-                <td>{{ peerDownloadedPieces(peer as Record<string, unknown>) }}</td>
+                <td>{{ peerConnection(peer) }}</td>
+                <td>{{ peerDownloadedPieces(peer) }}</td>
               </tr>
             </tbody>
           </table>

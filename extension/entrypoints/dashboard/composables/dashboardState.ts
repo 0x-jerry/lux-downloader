@@ -1,4 +1,4 @@
-import type { LuxConfig } from '../../../src/shared'
+import type { LuxConfig } from '../../../shared'
 import type { Task, TorrentDetailEntry } from '../types'
 
 export type ServerConnection = 'checking' | 'connected' | 'disconnected'
@@ -20,4 +20,10 @@ export type DashboardState = {
   newTaskUrl: string
   newTaskReferer: string
   form: LuxConfig
+  retryDialogOpen: boolean
+  retryDialogError: string
+  retryDialogUrl: string
+  retryDialogReferer: string
+  retryDialogFilename: string
+  retryDialogOverwrite: boolean
 }

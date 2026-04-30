@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LuxConfig } from '../../../src/shared'
+import type { LuxConfig } from '../../../shared'
 
 defineProps<{
   form: LuxConfig
