@@ -1,15 +1,42 @@
 <script setup lang="ts">
+import { onMounted, reactive } from 'vue'
 import type { LuxConfig } from '../../../shared'
+import { useConfig } from '../composables/useConfig'
 
-defineProps<{
-  form: LuxConfig
-  savingConfig: boolean
-  configStatus: string
-}>()
+const { load: loadConfig, save: saveConfig } = useConfig()
 
-defineEmits<{
-  save: []
-}>()
+const form = reactive<LuxConfig>({
+  baseUrl: 'http://127.0.0.1:8080',
+  authToken: 'change-me',
+  interceptEnabled: true,
+  includeCookies: true,
+  includeReferer: true,
+})
+
+const ui = reactive({
+  saving: false,
+  status: '',
+})
+
+onMounted(async () => {
+  try {
+    const config = await loadConfig()
+    Object.assign(form, config)
+  } catch (e) {
+    ui.status = e instanceof Error ? e.message : String(e)
+  }
+})
+
+async function handleSave() {
+  ui.saving = true
+  ui.status = 'Saving...'
+  try {
+    const result = await saveConfig({ ...form })
+    ui.status = result.ok ? 'Saved and validated successfully.' : result.error
+  } finally {
+    ui.saving = false
+  }
+}
 </script>
 
 <template>
@@ -28,10 +55,10 @@ defineEmits<{
       <t-checkbox v-model:checked="form.includeCookies">Include cookies for intercepted link domain</t-checkbox>
 
       <t-space direction="vertical" size="8px" style="width: 100%">
-        <t-button :loading="savingConfig" theme="primary" block @click="$emit('save')">
+        <t-button :loading="ui.saving" theme="primary" block @click="handleSave">
           Save & Validate
         </t-button>
-        <p class="status">{{ configStatus }}</p>
+        <p class="status">{{ ui.status }}</p>
       </t-space>
     </t-form>
   </t-card>

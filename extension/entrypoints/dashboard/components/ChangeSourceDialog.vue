@@ -1,37 +1,53 @@
 <script setup lang="ts">
+import { reactive } from 'vue'
 import BaseDialog from './BaseDialog.vue'
+import type { Task } from '../types'
 
-defineProps<{
-  open: boolean
-  taskTitle: string
-  value: string
+const state = reactive({
+  open: false,
+  taskTitle: '',
+  taskId: null as string | null,
+  value: '',
+})
+
+const emit = defineEmits<{
+  save: [taskId: string, value: string]
 }>()
 
-defineEmits<{
-  cancel: []
-  confirm: []
-  'update:value': [value: string]
-}>()
+function show(task: Task) {
+  state.taskId = task.id
+  state.taskTitle = task.spec.destination_path || task.id
+  state.value = task.spec.source.value
+  state.open = true
+}
+
+function handleCancel() {
+  state.open = false
+  state.taskId = null
+}
+
+function handleSave() {
+  if (!state.taskId) return
+  emit('save', state.taskId, state.value.trim())
+  state.open = false
+  state.taskId = null
+}
+
+defineExpose({ open: show })
 </script>
 
 <template>
-  <BaseDialog :open="open" title="Change task source" @close="$emit('cancel')" size="lg">
-    <p class="dialog-text">{{ taskTitle }}</p>
+  <BaseDialog v-model:open="state.open" title="Change task source" size="lg">
+    <p class="dialog-text">{{ state.taskTitle }}</p>
     <t-form layout="vertical">
       <t-form-item label="Source">
-        <t-input
-          :value="value"
-          type="text"
-          clearable
-          placeholder="https://... or magnet:?... or .torrent URL"
-          @update:value="$emit('update:value', String($event ?? ''))"
-        />
+        <t-input v-model="state.value" type="text" clearable placeholder="https://... or magnet:?... or .torrent URL" />
       </t-form-item>
     </t-form>
 
     <template #actions>
-      <t-button variant="outline" @click="$emit('cancel')">Cancel</t-button>
-      <t-button theme="primary" @click="$emit('confirm')">Save</t-button>
+      <t-button variant="outline" @click="handleCancel">Cancel</t-button>
+      <t-button theme="primary" @click="handleSave">Save</t-button>
     </template>
   </BaseDialog>
 </template>

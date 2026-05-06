@@ -11,8 +11,8 @@ withDefaults(
   },
 )
 
-defineEmits<{
-  close: []
+const emit = defineEmits<{
+  'update:open': [value: boolean]
 }>()
 </script>
 
@@ -24,7 +24,7 @@ defineEmits<{
     placement="center"
     :confirm-btn="null"
     :cancel-btn="null"
-    @close="$emit('close')"
+    @close="emit('update:open', false)"
   >
     <div class="content">
       <slot />

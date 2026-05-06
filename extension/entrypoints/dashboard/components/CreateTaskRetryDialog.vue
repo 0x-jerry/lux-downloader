@@ -1,52 +1,67 @@
 <script setup lang="ts">
+import { reactive } from 'vue'
 import BaseDialog from './BaseDialog.vue'
 
-defineProps<{
-  open: boolean
-  error: string
-  url: string
-  filename: string
-  overwrite: boolean
+const state = reactive({
+  open: false,
+  error: '',
+  url: '',
+  referer: '',
+  filename: '',
+  overwrite: false,
+})
+
+const emit = defineEmits<{
+  retry: [url: string, referer: string, filename: string, overwrite: boolean]
 }>()
 
-defineEmits<{
-  cancel: []
-  retry: []
-  'update:filename': [value: string]
-  'update:overwrite': [value: boolean]
-}>()
+function show(retryUrl: string, retryReferer: string, retryFilename: string, retryError: string) {
+  state.url = retryUrl
+  state.referer = retryReferer
+  state.error = retryError
+  state.filename = retryFilename
+  state.overwrite = false
+  state.open = true
+}
+
+function setErrorMessage(msg: string) {
+  state.error = msg
+  state.open = true
+}
+
+function handleCancel() {
+  state.open = false
+}
+
+function handleRetry() {
+  state.open = false
+  emit('retry', state.url, state.referer, state.filename, state.overwrite)
+}
+
+defineExpose({ open: show, setError: setErrorMessage })
 </script>
 
 <template>
-  <BaseDialog :open="open" title="Task creation failed" @close="$emit('cancel')" size="lg">
-    <p class="url-display">{{ url }}</p>
+  <BaseDialog v-model:open="state.open" title="Task creation failed" size="lg">
+    <p class="url-display">{{ state.url }}</p>
 
-    <t-alert theme="error" :message="error" />
+    <t-alert theme="error" :message="state.error" />
 
     <t-form layout="vertical">
       <t-form-item label="Filename">
-        <t-input
-          :value="filename"
-          type="text"
-          clearable
-          placeholder="Enter filename..."
-          @update:value="$emit('update:filename', String($event ?? ''))"
-        />
+        <t-input v-model="state.filename" type="text" clearable placeholder="Enter filename..." />
       </t-form-item>
 
       <t-form-item>
-        <t-checkbox
-          :checked="overwrite"
-          @update:checked="$emit('update:overwrite', $event ?? false)"
-        >
+        <t-checkbox v-model:checked="state.overwrite">
           Overwrite if file already exists
         </t-checkbox>
       </t-form-item>
     </t-form>
 
     <template #actions>
-      <t-button variant="outline" @click="$emit('cancel')">Cancel</t-button>
-      <t-button theme="primary" @click="$emit('retry')">Retry</t-button>
+      <t-button variant="outline" @click="handleCancel">Cancel</t-button>
+      <t-button theme="primary" @click="handleRetry">Retry</t-button>
     </template>
   </BaseDialog>
 </template>

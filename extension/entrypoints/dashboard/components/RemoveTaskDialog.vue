@@ -1,31 +1,50 @@
 <script setup lang="ts">
+import { reactive } from 'vue'
 import BaseDialog from './BaseDialog.vue'
+import { useInjectTasks } from '../composables/useTasks'
 
-defineProps<{
-  open: boolean
-  taskTitle: string
-  removeDeleteFile: boolean
+const { taskTitle } = useInjectTasks()
+
+const state = reactive({
+  open: false,
+  taskId: null as string | null,
+  deleteFile: false,
+})
+
+const emit = defineEmits<{
+  confirm: [taskId: string, deleteFile: boolean]
 }>()
 
-defineEmits<{
-  cancel: []
-  confirm: []
-  'update:removeDeleteFile': [value: boolean]
-}>()
+function show(id: string) {
+  state.taskId = id
+  state.deleteFile = false
+  state.open = true
+}
+
+function handleCancel() {
+  state.open = false
+  state.taskId = null
+}
+
+function handleConfirm() {
+  if (!state.taskId) return
+  emit('confirm', state.taskId, state.deleteFile)
+  state.open = false
+  state.taskId = null
+}
+
+defineExpose({ open: show })
 </script>
 
 <template>
-  <BaseDialog :open="open" title="Remove task?" @close="$emit('cancel')">
-    <p class="dialog-text">{{ taskTitle }}</p>
-    <t-checkbox
-      :checked="removeDeleteFile"
-      @change="$emit('update:removeDeleteFile', $event)"
-    >
+  <BaseDialog v-model:open="state.open" title="Remove task?">
+    <p class="dialog-text">{{ taskTitle(state.taskId) }}</p>
+    <t-checkbox v-model:checked="state.deleteFile">
       Delete downloaded file from disk
     </t-checkbox>
     <template #actions>
-      <t-button variant="outline" @click="$emit('cancel')">Cancel</t-button>
-      <t-button theme="danger" @click="$emit('confirm')">Remove</t-button>
+      <t-button variant="outline" @click="handleCancel">Cancel</t-button>
+      <t-button theme="danger" @click="handleConfirm">Remove</t-button>
     </template>
   </BaseDialog>
 </template>

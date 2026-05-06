@@ -56,7 +56,7 @@ export async function createTaskFromLink(context: LinkContext): Promise<{ id: st
       cookies,
     },
     auto_start: true,
-    ...(context.overwrite ? { overwrite: true } : {}),
+    overwrite_existing: context.overwrite ?? false,
   }
 
   const response = await fetch(`${baseUrl}/tasks`, {
