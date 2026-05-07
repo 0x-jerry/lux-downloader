@@ -90,3 +90,10 @@ export interface TorrentStats {
 export interface ListTasksResponse {
   items: Task[]
 }
+
+export interface InterceptFailure {
+  url: string
+  referer: string
+  error: string
+  filename: string
+}

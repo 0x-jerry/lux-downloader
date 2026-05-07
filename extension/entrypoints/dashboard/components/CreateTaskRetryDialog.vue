@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import BaseDialog from './BaseDialog.vue'
+import BaseDialog, { BaseDialogProps } from './BaseDialog.vue'
 
 export interface CreateTaskRetryDialogRetryOptions {
   url: string
@@ -9,11 +9,12 @@ export interface CreateTaskRetryDialogRetryOptions {
   overwrite: boolean
 }
 
-interface CreateTaskRetryDialogProps {
+export interface CreateTaskRetryDialogProps {
   url: string
   referer: string
   filename: string
   error: string
+  mode?: BaseDialogProps['mode']
   retryFn: (options: CreateTaskRetryDialogRetryOptions) => Promise<{ ok: boolean; error?: string }>
 }
 
@@ -55,7 +56,7 @@ async function handleRetry() {
 </script>
 
 <template>
-  <BaseDialog v-model:open="open" title="Task creation failed" size="lg">
+  <BaseDialog v-model:open="open" title="Task creation failed" size="lg" :mode="mode">
     <p class="url-display">{{ props.url }}</p>
 
     <t-alert theme="error" :message="state.error" />

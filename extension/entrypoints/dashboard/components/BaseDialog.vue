@@ -1,15 +1,15 @@
 <script setup lang="ts">
-withDefaults(
-  defineProps<{
-    open: boolean
-    title?: string
-    size?: 'sm' | 'lg'
-  }>(),
-  {
-    title: '',
-    size: 'sm',
-  },
-)
+export interface BaseDialogProps {
+  open: boolean
+  title?: string
+  size?: 'sm' | 'lg'
+  mode?: 'normal' | 'modal' | 'modeless' | 'full-screen'
+}
+
+withDefaults(defineProps<BaseDialogProps>(), {
+  title: '',
+  size: 'sm',
+})
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
@@ -21,8 +21,8 @@ const emit = defineEmits<{
     :visible="open"
     :header="title || false"
     :width="size === 'lg' ? '860px' : '420px'"
-    placement="center"
     :confirm-btn="null"
+    :mode="mode"
     :cancel-btn="null"
     @close="emit('update:open', false)"
   >

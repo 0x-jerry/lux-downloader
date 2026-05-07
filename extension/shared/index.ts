@@ -11,6 +11,7 @@ export type {
   TorrentFile,
   TorrentStats,
   ListTasksResponse,
+  InterceptFailure,
 } from './types'
 
 export { normalizeBaseUrl, getConfig, saveConfig } from './config'
