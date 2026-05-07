@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue'
 import { useInjectTasks } from '../composables/useTasks'
 import { filenameFromUrl } from '../../../shared'
-import CreateTaskRetryDialog from './CreateTaskRetryDialog.vue'
+import CreateTaskRetryDialog, { CreateTaskRetryDialogRetryOptions } from './CreateTaskRetryDialog.vue'
 
 const { createTask } = useInjectTasks()
 
@@ -13,11 +13,21 @@ const form = reactive({
   status: '',
 })
 
-interface RetryDialog {
-  open: (url: string, referer: string, filename: string, error: string) => void
-  setError: (msg: string) => void
+const retryDialogOpen = ref(false)
+
+interface RetryDialogData {
+  url: string
+  referer: string
+  filename: string
+  error: string
 }
-const retryDialog = ref<RetryDialog | null>(null)
+
+const retryDialogData = reactive<RetryDialogData>({
+  url: '',
+  referer: '',
+  filename: '',
+  error: '',
+})
 
 async function handleSubmit() {
   if (!form.url.trim()) {
@@ -37,7 +47,11 @@ async function handleSubmit() {
     form.url = ''
     form.referer = ''
     form.status = ''
-    retryDialog.value!.open(retryUrl, retryReferer, retryFilename, result.error)
+    retryDialogData.url = retryUrl
+    retryDialogData.referer = retryReferer
+    retryDialogData.filename = retryFilename
+    retryDialogData.error = result.error
+    retryDialogOpen.value = true
   } else {
     form.status = `Task created: ${result.id}`
     form.url = ''
@@ -47,23 +61,17 @@ async function handleSubmit() {
   form.creating = false
 }
 
-async function handleRetry(retryUrl: string, retryReferer: string, filename: string, overwrite: boolean) {
-  form.creating = true
-  form.status = 'Retrying...'
-
-  const result = await createTask(retryUrl, retryReferer, {
+async function retryFn({ url, referer, filename, overwrite }: CreateTaskRetryDialogRetryOptions) {
+  const result = await createTask(url, referer, {
     destinationPath: filename,
     overwrite,
   })
 
-  if (!result.ok) {
-    form.status = ''
-    retryDialog.value!.setError(result.error)
-  } else {
+  if (result.ok) {
     form.status = `Task created: ${result.id}`
   }
 
-  form.creating = false
+  return result
 }
 </script>
 
@@ -83,7 +91,14 @@ async function handleRetry(retryUrl: string, retryReferer: string, filename: str
     </t-space>
   </t-form>
 
-  <CreateTaskRetryDialog ref="retryDialog" @retry="handleRetry" />
+  <CreateTaskRetryDialog
+    v-model:open="retryDialogOpen"
+    :url="retryDialogData.url"
+    :referer="retryDialogData.referer"
+    :filename="retryDialogData.filename"
+    :error="retryDialogData.error"
+    :retry-fn="retryFn"
+  />
 </template>
 
 <style scoped>

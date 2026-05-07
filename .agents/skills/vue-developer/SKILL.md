@@ -3,7 +3,7 @@ name: vue-developer
 description: Vue 3 Composition API developer. Use when writing, reviewing, or refactoring Vue components, composables.
 ---
 
-> Read `developer` skill first — all principles there apply to Vue code too.
+> Read `js-developer` skill first — all principles there apply to Vue code too.
 
 # Vue Developer Skill
 

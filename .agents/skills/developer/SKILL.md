@@ -57,6 +57,10 @@ Every piece of knowledge must have a single, unambiguous, authoritative represen
 4. Respect existing conventions. Consistency within a codebase beats external best practices.
 
 
-## Function Parameter Design
+## Function Parameters Design
 
 1. Prefer struct when parameters more than three.
+
+## Other Tips
+
+1. !!! Prefer refactor code instead of fair of breaking changes.

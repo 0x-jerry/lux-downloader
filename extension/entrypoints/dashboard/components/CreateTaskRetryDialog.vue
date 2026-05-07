@@ -1,49 +1,62 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import BaseDialog from './BaseDialog.vue'
 
+export interface CreateTaskRetryDialogRetryOptions {
+  url: string
+  referer: string
+  filename: string
+  overwrite: boolean
+}
+
+interface CreateTaskRetryDialogProps {
+  url: string
+  referer: string
+  filename: string
+  error: string
+  retryFn: (options: CreateTaskRetryDialogRetryOptions) => Promise<{ ok: boolean; error?: string }>
+}
+
+const props = defineProps<CreateTaskRetryDialogProps>()
+const open = defineModel<boolean>('open', { required: true })
+
 const state = reactive({
-  open: false,
-  error: '',
-  url: '',
-  referer: '',
-  filename: '',
+  filename: props.filename,
+  error: props.error,
   overwrite: false,
 })
 
-const emit = defineEmits<{
-  retry: [url: string, referer: string, filename: string, overwrite: boolean]
-}>()
+watch(open, (isOpen) => {
+  if (isOpen) {
+    state.filename = props.filename
+    state.error = props.error
+    state.overwrite = false
+  }
+})
 
-function show(retryUrl: string, retryReferer: string, retryFilename: string, retryError: string) {
-  state.url = retryUrl
-  state.referer = retryReferer
-  state.error = retryError
-  state.filename = retryFilename
-  state.overwrite = false
-  state.open = true
-}
-
-function setErrorMessage(msg: string) {
-  state.error = msg
-  state.open = true
-}
+const retrying = ref(false)
 
 function handleCancel() {
-  state.open = false
+  open.value = false
 }
 
-function handleRetry() {
-  state.open = false
-  emit('retry', state.url, state.referer, state.filename, state.overwrite)
-}
+async function handleRetry() {
+  retrying.value = true
+  const result = await props.retryFn({ url: props.url, referer: props.referer, filename: state.filename, overwrite: state.overwrite })
+  retrying.value = false
 
-defineExpose({ open: show, setError: setErrorMessage })
+  if (!result.ok) {
+    state.error = result.error ?? 'Retry failed'
+    return
+  }
+
+  open.value = false
+}
 </script>
 
 <template>
-  <BaseDialog v-model:open="state.open" title="Task creation failed" size="lg">
-    <p class="url-display">{{ state.url }}</p>
+  <BaseDialog v-model:open="open" title="Task creation failed" size="lg">
+    <p class="url-display">{{ props.url }}</p>
 
     <t-alert theme="error" :message="state.error" />
 
@@ -61,7 +74,7 @@ defineExpose({ open: show, setError: setErrorMessage })
 
     <template #actions>
       <t-button variant="outline" @click="handleCancel">Cancel</t-button>
-      <t-button theme="primary" @click="handleRetry">Retry</t-button>
+      <t-button theme="primary" :loading="retrying" @click="handleRetry">Retry</t-button>
     </template>
   </BaseDialog>
 </template>
